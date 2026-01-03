@@ -3,9 +3,19 @@ using UnityEngine;
 
 public class Coin : NetworkBehaviour
 {
-    // 0=Score, 1=Diamond, 2=Trap, 3=Speed, 4=BombUp, 5=Fire(Range), 6=RARE
     public NetworkVariable<int> coinType = new NetworkVariable<int>(0);
     [SerializeField] private SpriteRenderer spriteRenderer;
+
+    // Drag your sprites here in the Inspector!
+    [Header("Item Sprites")]
+    [SerializeField] Sprite coinSprite;
+    [SerializeField] Sprite diamondSprite;
+    [SerializeField] Sprite trapSprite; // Maybe use a skull or poison icon?
+    [SerializeField] Sprite speedSprite; // Your "ItemSpeed" asset
+    [SerializeField] Sprite bombUpSprite; // Your "ItemExtraBomb" asset
+    [SerializeField] Sprite fireSprite;   // Your "ItemBlastRange" asset
+    [SerializeField] Sprite rareSprite;
+
     private int scoreValue = 0;
 
     public override void OnNetworkSpawn()
@@ -16,15 +26,22 @@ public class Coin : NetworkBehaviour
 
     private void ApplyVisuals(int type)
     {
+        // Reset color to white so the sprite shows its real colors
+        spriteRenderer.color = Color.white;
+
         switch (type)
         {
-            case 0: spriteRenderer.color = Color.yellow; scoreValue = 1; break; // Coin
-            case 1: spriteRenderer.color = Color.cyan; scoreValue = 5; break; // Diamond
-            case 2: spriteRenderer.color = Color.red; scoreValue = -3; break; // Trap
-            case 3: spriteRenderer.color = Color.white; break; // Speed
-            case 4: spriteRenderer.color = Color.black; break; // Bomb Up
-            case 5: spriteRenderer.color = Color.grey; break; // Fire (Orange)
-            case 6: spriteRenderer.color = Color.magenta; break; // RARE (Max)
+            case 0: spriteRenderer.sprite = coinSprite; scoreValue = 1; break;
+            case 1: spriteRenderer.sprite = diamondSprite; scoreValue = 5; break;
+            case 2: // Trap
+                spriteRenderer.sprite = trapSprite;
+                scoreValue = -3;
+                spriteRenderer.color = Color.red; // Tint it red if you don't have a specific trap sprite
+                break;
+            case 3: spriteRenderer.sprite = speedSprite; break;
+            case 4: spriteRenderer.sprite = bombUpSprite; break;
+            case 5: spriteRenderer.sprite = fireSprite; break;
+            case 6: spriteRenderer.sprite = rareSprite; break;
         }
     }
 

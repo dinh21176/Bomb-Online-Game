@@ -5,7 +5,6 @@ public class Explosion : NetworkBehaviour
 {
     public override void OnNetworkSpawn()
     {
-        // Automatically destroy the explosion after 0.5 seconds
         if (IsServer)
         {
             Invoke(nameof(DestroyExplosion), 0.5f);
@@ -14,20 +13,33 @@ public class Explosion : NetworkBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
-        if (!IsServer) return; // Only server handles damage
+        if (!IsServer) return;
+        Debug.Log($"Explosion hit: {other.name} with Tag: {other.tag}");
 
+        // 1. Kill Player
         if (other.CompareTag("Player"))
         {
             var player = other.GetComponent<PlayerMovement>();
             if (player != null)
             {
-                player.Die(); // Kill the player
+                player.Die();
+            }
+        }
+        // 2. Trigger Chain Reaction (Bomb)
+        else if (other.CompareTag("Bomb"))
+        {
+            Debug.Log("Found a bomb! Detonating now.");
+            var bomb = other.GetComponent<Bomb>();
+            if (bomb != null)
+            {
+                // Explode immediately!
+                bomb.Detonate();
             }
         }
     }
 
     void DestroyExplosion()
     {
-        GetComponent<NetworkObject>().Despawn();
+        if (IsSpawned) GetComponent<NetworkObject>().Despawn();
     }
 }

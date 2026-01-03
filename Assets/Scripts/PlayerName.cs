@@ -1,9 +1,7 @@
 using UnityEngine;
 using Unity.Netcode;
-using System.Collections;
 using Unity.Collections;
 using System;
-using TMPro.EditorUtilities;
 using TMPro;
 
 public class PlayerName : NetworkBehaviour

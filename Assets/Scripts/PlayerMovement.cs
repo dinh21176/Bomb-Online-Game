@@ -16,11 +16,19 @@ public class PlayerMovement : NetworkBehaviour
     public NetworkVariable<int> speedLevel = new NetworkVariable<int>(0);
     public NetworkVariable<bool> isDead = new NetworkVariable<bool>(false);
 
+    // Owner writes (Permission.Owner), Everyone reads
+    public NetworkVariable<Vector2> netInput = new NetworkVariable<Vector2>(
+        Vector2.zero,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner
+    );
+
     private int currentActiveBombs = 0;
     private Rigidbody2D rb;
     private Vector2 movement;
     private SpriteRenderer visuals;
     private Collider2D col;
+    public Animator animator;
 
     // Tracks if the Rare Item is active
     private bool isRareModeActive = false;
@@ -38,34 +46,68 @@ public class PlayerMovement : NetworkBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         visuals = GetComponentInChildren<SpriteRenderer>();
+        animator = GetComponent<Animator>();
         col = GetComponent<Collider2D>();
+
+        if (animator == null)
+        {
+            Debug.LogError("ANIMATOR NOT FOUND! Make sure the Animator component is attached to the Player or a child object.");
+        }
 
         isDead.OnValueChanged += OnDeathStateChanged;
     }
 
     private void Update()
     {
-        if (!IsOwner || isDead.Value) return;
+        if (isDead.Value) return;
 
-        float moveHorizontal = Input.GetAxis("Horizontal");
-        float moveVertical = Input.GetAxis("Vertical");
-        movement = new Vector2(moveHorizontal, moveVertical).normalized;
-
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (IsOwner)
         {
-            TryPlantBombServerRpc();
+            float x = Input.GetAxis("Horizontal");
+            float y = Input.GetAxis("Vertical");
+            Vector2 currentInput = new Vector2(x, y).normalized;
+
+            // Send input to the server/other clients
+            netInput.Value = currentInput;
+
+            // Bomb Input (Owner Only)
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                TryPlantBombServerRpc();
+            }
         }
+
+        UpdateAnimations();
     }
 
     private void FixedUpdate()
     {
-        if (!IsOwner) return;
-        if (isDead.Value) { rb.linearVelocity = Vector2.zero; return; }
+        if (!IsOwner) return; 
 
         float currentSpeed = CalculateCurrentSpeed();
-        rb.linearVelocity = movement * currentSpeed;
+
+        // Use the synced input for movement too
+        rb.linearVelocity = netInput.Value * currentSpeed;
     }
 
+    void UpdateAnimations()
+    {
+        if (animator == null) return;
+
+        Vector2 input = netInput.Value;
+
+        // Only update if there is input (prevents snapping to 0,0 for blend tree)
+        if (input != Vector2.zero)
+        {
+            animator.SetFloat("InputX", input.x);
+            animator.SetFloat("InputY", input.y);
+            animator.SetBool("IsMoving", true);
+        }
+        else
+        {
+            animator.SetBool("IsMoving", false);
+        }
+    }
     private float CalculateCurrentSpeed()
     {
         // 1. Calculate Base Speed
@@ -84,20 +126,13 @@ public class PlayerMovement : NetworkBehaviour
     [Rpc(SendTo.Server)]
     void TryPlantBombServerRpc()
     {
-        if (isDead.Value) return;
-        if (currentActiveBombs >= maxBombs.Value) return;
-
+        if (isDead.Value || currentActiveBombs >= maxBombs.Value) return;
         Vector2 spawnPos = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y));
-
-        Collider2D existingBomb = Physics2D.OverlapCircle(spawnPos, 0.1f, bombLayer);
-        if (existingBomb != null && existingBomb.CompareTag("Bomb")) return;
+        if (Physics2D.OverlapCircle(spawnPos, 0.1f, bombLayer)) return;
 
         GameObject bombObj = Instantiate(bombPrefab, spawnPos, Quaternion.identity);
-        var bombScript = bombObj.GetComponent<Bomb>();
-        var netObj = bombObj.GetComponent<NetworkObject>();
-
-        netObj.Spawn();
-        bombScript.Initialize(OwnerClientId, explosionRange.Value);
+        bombObj.GetComponent<NetworkObject>().Spawn();
+        bombObj.GetComponent<Bomb>().Initialize(OwnerClientId, explosionRange.Value);
         currentActiveBombs++;
     }
 
@@ -204,14 +239,19 @@ public class PlayerMovement : NetworkBehaviour
 
     // --- DEATH LOGIC ---
 
-    public void Die() { if (IsServer && !isDead.Value) { isDead.Value = true; StartCoroutine(RespawnCoroutine()); } }
-
-    IEnumerator RespawnCoroutine()
+    public void Die()
     {
-        yield return new WaitForSeconds(5f);
-        isDead.Value = false;
+        if (!IsServer || isDead.Value) return;
 
-        // If they died while Rare Mode was active, we should probably reset it
+        Debug.Log($"Player {OwnerClientId} Died!");
+
+        // --- FEATURE: SCORE PENALTY ---
+        // Subtract 15 points
+        ScoreBoardManager.Instance.IncreasePlayerScoreRpc(OwnerClientId, -10);
+
+        isDead.Value = true;
+
+        // If they died with the Rare Mode active, cancel it immediately
         if (isRareModeActive)
         {
             isRareModeActive = false;
@@ -219,13 +259,22 @@ public class PlayerMovement : NetworkBehaviour
             explosionRange.Value = savedExplosionRange;
             SetRareModeClientRpc(false);
         }
-        
-        // Optional: Players to lose stats when they die? 
-        speedLevel.Value = 0;
-        maxBombs.Value = 1;
-        explosionRange.Value = 1;
 
-        if (GameManager.Instance) transform.position = GameManager.Instance.GetRandomSpawnPosition();
+        StartCoroutine(RespawnCoroutine());
+    }
+
+    IEnumerator RespawnCoroutine()
+    {
+        yield return new WaitForSeconds(3f);
+
+        // ---  USE SAFE SPAWN POSITION ---
+        if (GameManager.Instance != null)
+        {
+            // Prevents spawning inside walls!
+            transform.position = GameManager.Instance.GetSafeSpawnPosition();
+        }
+
+        isDead.Value = false;
     }
 
     private void OnDeathStateChanged(bool prev, bool current)

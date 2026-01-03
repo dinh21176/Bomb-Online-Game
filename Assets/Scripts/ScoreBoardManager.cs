@@ -62,10 +62,16 @@ public class ScoreBoardManager : NetworkBehaviour
                 var player = networkPlayerList[i];
                 player.score += scoreIncrease;
 
-                //Prevent negative scores
-                if (player.score < 0) player.score = 0;
+                // Prevent negative score
+                if (player.score < 0) player.score = 0; 
 
                 networkPlayerList[i] = player;
+
+                if (scoreIncrease < 0)
+                {
+                    Debug.Log($"Player {playerId} lost {Mathf.Abs(scoreIncrease)} points!");
+                }
+
                 break;
             }
         }

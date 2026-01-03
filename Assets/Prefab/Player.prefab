@@ -34,7 +34,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0.04, y: 1.31}
+  m_AnchoredPosition: {x: 0.58, y: 1.87}
   m_SizeDelta: {x: 20.4865, y: 1.6199}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!23 &4516442452707404573
@@ -196,6 +196,7 @@ GameObject:
   - component: {fileID: 185739707655820864}
   - component: {fileID: 1798451886220362414}
   - component: {fileID: 8422819735716951267}
+  - component: {fileID: 5039249952128945010}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -265,8 +266,8 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
+  m_SortingOrder: 10
+  m_Sprite: {fileID: -1615810300593537487, guid: 880a048e2e87e3f48be121d558b91e6c, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -315,7 +316,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   ShowTopMostFoldoutHeaderGroup: 1
-  defaultMoveSpeed: 10
+  baseMoveSpeed: 5
+  speedStep: 1
   bombPrefab: {fileID: 7460842945125973350, guid: 12a691caa53bfc24a9e4f16e133b6456, type: 3}
   bombLayer:
     serializedVersion: 2
@@ -324,8 +326,11 @@ MonoBehaviour:
     m_InternalValue: 1
   explosionRange:
     m_InternalValue: 1
+  speedLevel:
+    m_InternalValue: 0
   isDead:
     m_InternalValue: 0
+  animator: {fileID: 0}
 --- !u!50 &4949047049839126307
 Rigidbody2D:
   serializedVersion: 5
@@ -489,5 +494,27 @@ CircleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: 0.45, y: 0.4}
   m_Radius: 0.5
+--- !u!95 &5039249952128945010
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6588745524252336695}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 8abb79851b8eada4b845123c9365adf1, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0

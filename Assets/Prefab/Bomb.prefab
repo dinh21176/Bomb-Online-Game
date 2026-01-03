@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 409065264581852749}
   - component: {fileID: 1817129482097496913}
   - component: {fileID: 82092613598329071}
+  - component: {fileID: 3070375777844111114}
   m_Layer: 0
   m_Name: Bomb
   m_TagString: Bomb
@@ -31,7 +32,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -6.82148, y: -2.58629, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -81,9 +82,9 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
-  m_Color: {r: 0, g: 0, b: 0, a: 1}
+  m_SortingOrder: 5
+  m_Sprite: {fileID: -5337159410277229379, guid: 9b82fe05e3ea373479211e363fb59e81, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -132,8 +133,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Bomb
   ShowTopMostFoldoutHeaderGroup: 1
   explosionPrefab: {fileID: 2254994243306984401, guid: 7fa43f3e395b8f144af4db46f39f0793, type: 3}
-  fuseTime: 2
   bombCollider: {fileID: 82092613598329071}
+  wallLayer:
+    serializedVersion: 2
+    m_Bits: 64
+  fuseTime: 2
 --- !u!61 &82092613598329071
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -178,5 +182,32 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
+  m_Size: {x: 0.8, y: 0.8}
   m_EdgeRadius: 0
+--- !u!50 &3070375777844111114
+Rigidbody2D:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7460842945125973350}
+  m_BodyType: 1
+  m_Simulated: 1
+  m_UseFullKinematicContacts: 0
+  m_UseAutoMass: 0
+  m_Mass: 1
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
+  m_GravityScale: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_Interpolate: 0
+  m_SleepingMode: 1
+  m_CollisionDetection: 0
+  m_Constraints: 0

@@ -1303,7 +1303,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 9, y: 253.75}
+  m_AnchoredPosition: {x: 11, y: 453}
   m_SizeDelta: {x: 439.4709, y: 51.91}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1512920994
@@ -1399,7 +1399,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: 0, y: 0, z: 0, w: 0}
+  m_margin: {x: -50.96045, y: 0, z: -63.70117, w: -60.51538}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -1601,9 +1601,19 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   gameInfoText: {fileID: 1512920995}
   coinPrefab: {fileID: 3792505855476812221, guid: f82f6dd5868ae384b9091e506b7969d5, type: 3}
+  wallPrefab: {fileID: 3702639541171450815, guid: c13d1d1ce53952047936c9086e9aa46d, type: 3}
+  warningPrefab: {fileID: 0}
   spawnAreaMin: {x: -20, y: -11}
   spawnAreaMax: {x: 20, y: 11}
-  spawnInterval: 1
+  obstructionLayer:
+    serializedVersion: 2
+    m_Bits: 73
+  spawnInterval: 0.1
+  suddenDeathTime: 100
+  gameDuration: 120
+  finalArenaSize: 15
+  gameActive:
+    m_InternalValue: 0
   gameTime:
     m_InternalValue: 10
 --- !u!4 &1674291051

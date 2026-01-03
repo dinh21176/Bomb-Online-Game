@@ -58,7 +58,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -72,7 +72,7 @@ TextureImporter:
   spriteMeshType: 1
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
-  spritePixelsToUnits: 100
+  spritePixelsToUnits: 16
   spriteBorder: {x: 0, y: 0, z: 0, w: 0}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
@@ -138,10 +138,10 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 0
-        y: 47
+        y: 72
         width: 16
-        height: 48
-      alignment: 0
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -159,11 +159,11 @@ TextureImporter:
       name: PlayerRedWalk_1
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 17
-        height: 49
-      alignment: 0
+        x: 16
+        y: 72
+        width: 16
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -181,11 +181,11 @@ TextureImporter:
       name: PlayerRedWalk_2
       rect:
         serializedVersion: 2
-        x: 15
-        y: 47
-        width: 17
-        height: 49
-      alignment: 0
+        x: 32
+        y: 72
+        width: 16
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -203,11 +203,11 @@ TextureImporter:
       name: PlayerRedWalk_3
       rect:
         serializedVersion: 2
-        x: 15
-        y: 23
-        width: 17
-        height: 25
-      alignment: 0
+        x: 48
+        y: 72
+        width: 16
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -225,11 +225,11 @@ TextureImporter:
       name: PlayerRedWalk_4
       rect:
         serializedVersion: 2
-        x: 31
-        y: 47
-        width: 17
-        height: 48
-      alignment: 0
+        x: 0
+        y: 48
+        width: 16
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -247,11 +247,11 @@ TextureImporter:
       name: PlayerRedWalk_5
       rect:
         serializedVersion: 2
-        x: 31
-        y: 0
-        width: 33
-        height: 49
-      alignment: 0
+        x: 16
+        y: 48
+        width: 16
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -269,11 +269,11 @@ TextureImporter:
       name: PlayerRedWalk_6
       rect:
         serializedVersion: 2
-        x: 47
-        y: 47
-        width: 17
-        height: 49
-      alignment: 0
+        x: 32
+        y: 48
+        width: 16
+        height: 24
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -291,11 +291,11 @@ TextureImporter:
       name: PlayerRedWalk_7
       rect:
         serializedVersion: 2
-        x: 15
-        y: 0
-        width: 18
+        x: 48
+        y: 48
+        width: 16
         height: 24
-      alignment: 0
+      alignment: 9
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
@@ -309,11 +309,187 @@ TextureImporter:
       indices: 
       edges: []
       weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_8
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 24
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3c4a5493a86c51e449954af08d04c1a9
+      internalID: -1167073759
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_9
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 24
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f27ae9f8c9d27554d856560009c64d61
+      internalID: -206431498
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_10
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 24
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 819e9d55e0324ec45a1f9575e7bffbae
+      internalID: -1419197023
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_11
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 24
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd9ca8976358e704ab2f76b9ee967cdc
+      internalID: -691387098
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_12
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 0
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a050994e080444c48b3f96dee5010c77
+      internalID: 1351551844
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_13
+      rect:
+        serializedVersion: 2
+        x: 16
+        y: 0
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bf575033180c8cd4e804810f988f64af
+      internalID: -875074943
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_14
+      rect:
+        serializedVersion: 2
+        x: 32
+        y: 0
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fda905c994ff738408a95bc2f08afac4
+      internalID: -624677083
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: PlayerRedWalk_15
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 0
+        width: 16
+        height: 24
+      alignment: 9
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 63412987974a87a4a962f6a125dde276
+      internalID: 110303199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
     outline: []
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: be56bbbdbae3c6248af879cfee4b6022
     internalID: 0
     vertices: []
     indices: 
@@ -321,16 +497,26 @@ TextureImporter:
     weights: []
     secondaryTextures: []
     spriteCustomMetadata:
-      entries: []
+      entries:
+      - key: SpriteEditor.SliceSettings
+        value: '{"sliceOnImport":false,"gridCellCount":{"x":4.0,"y":4.0},"gridSpriteSize":{"x":16.0,"y":24.0},"gridSpriteOffset":{"x":0.0,"y":0.0},"gridSpritePadding":{"x":0.0,"y":0.0},"pivot":{"x":0.0,"y":0.0},"pivotPixels":{"x":0.0,"y":0.0},"autoSlicingMethod":0,"spriteAlignment":9,"pivotUnitMode":1,"slicingType":2,"keepEmptyRects":true,"isAlternate":false}'
     nameFileIdTable:
       PlayerRedWalk_0: -3719433009349668311
       PlayerRedWalk_1: -3387031413343639996
+      PlayerRedWalk_10: -1419197023
+      PlayerRedWalk_11: -691387098
+      PlayerRedWalk_12: 1351551844
+      PlayerRedWalk_13: -875074943
+      PlayerRedWalk_14: -624677083
+      PlayerRedWalk_15: 110303199
       PlayerRedWalk_2: 424803194690471717
       PlayerRedWalk_3: 8217273701640395558
       PlayerRedWalk_4: 7745408500511208834
       PlayerRedWalk_5: -5321909696083764040
       PlayerRedWalk_6: -1615810300593537487
       PlayerRedWalk_7: -3943012843671661309
+      PlayerRedWalk_8: -1167073759
+      PlayerRedWalk_9: -206431498
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

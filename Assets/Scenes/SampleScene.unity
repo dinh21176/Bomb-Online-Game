@@ -1602,7 +1602,7 @@ MonoBehaviour:
   gameInfoText: {fileID: 1512920995}
   coinPrefab: {fileID: 3792505855476812221, guid: f82f6dd5868ae384b9091e506b7969d5, type: 3}
   wallPrefab: {fileID: 3702639541171450815, guid: c13d1d1ce53952047936c9086e9aa46d, type: 3}
-  warningPrefab: {fileID: 0}
+  warningPrefab: {fileID: 1433167225023967263, guid: 42b2629090c80d54b9905fb236312647, type: 3}
   spawnAreaMin: {x: -20, y: -11}
   spawnAreaMax: {x: 20, y: 11}
   obstructionLayer:

@@ -1,6 +1,7 @@
 using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
+using Unity.Netcode.Components;
 
 public class PlayerMovement : NetworkBehaviour
 {
@@ -59,7 +60,14 @@ public class PlayerMovement : NetworkBehaviour
 
     private void Update()
     {
-        if (isDead.Value) return;
+        if (isDead.Value)
+        {
+            if (IsOwner)
+            {
+                netInput.Value = Vector2.zero; // Reset network input to 0,0
+            }
+            return; 
+        }
 
         if (IsOwner)
         {
@@ -67,16 +75,13 @@ public class PlayerMovement : NetworkBehaviour
             float y = Input.GetAxis("Vertical");
             Vector2 currentInput = new Vector2(x, y).normalized;
 
-            // Send input to the server/other clients
             netInput.Value = currentInput;
 
-            // Bomb Input (Owner Only)
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 TryPlantBombServerRpc();
             }
         }
-
         UpdateAnimations();
     }
 
@@ -239,19 +244,24 @@ public class PlayerMovement : NetworkBehaviour
 
     // --- DEATH LOGIC ---
 
-    public void Die()
+    public void Die(ulong killerId)
     {
         if (!IsServer || isDead.Value) return;
 
-        Debug.Log($"Player {OwnerClientId} Died!");
+        Debug.Log($"Player {OwnerClientId} was killed by {killerId}!");
 
-        // --- FEATURE: SCORE PENALTY ---
-        // Subtract 15 points
-        ScoreBoardManager.Instance.IncreasePlayerScoreRpc(OwnerClientId, -10);
+        // PENALTY: Victim loses 15 points
+        ScoreBoardManager.Instance.IncreasePlayerScoreRpc(OwnerClientId, -15);
+
+        // REWARD: Killer gains 15 points
+        // Check to ensure they didn't kill themselves (Suicide shouldn't reward points)
+        if (killerId != OwnerClientId)
+        {
+            ScoreBoardManager.Instance.IncreasePlayerScoreRpc(killerId, 15);
+        }
 
         isDead.Value = true;
 
-        // If they died with the Rare Mode active, cancel it immediately
         if (isRareModeActive)
         {
             isRareModeActive = false;
@@ -267,19 +277,43 @@ public class PlayerMovement : NetworkBehaviour
     {
         yield return new WaitForSeconds(3f);
 
-        // ---  USE SAFE SPAWN POSITION ---
+        // Calculate the safe position on the Server (where the map data is valid)
+        Vector2 respawnPos = transform.position; // Default to current if manager missing
+
         if (GameManager.Instance != null)
         {
-            // Prevents spawning inside walls!
-            transform.position = GameManager.Instance.GetSafeSpawnPosition();
+            respawnPos = GameManager.Instance.GetSafeSpawnPosition();
         }
 
         isDead.Value = false;
+
+        TeleportPlayerRpc(respawnPos);
     }
 
     private void OnDeathStateChanged(bool prev, bool current)
     {
         if (visuals) visuals.enabled = !current;
         if (col) col.enabled = !current;
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void TeleportPlayerRpc(Vector2 position)
+    {
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+        }
+
+
+        if (TryGetComponent(out NetworkTransform netTransform))
+        {
+            netTransform.Teleport(position, transform.rotation, transform.localScale);
+        }
+        else
+        {
+            transform.position = position;
+        }
+
+        Debug.Log($"Respawned (Teleported) to {position}");
     }
 }

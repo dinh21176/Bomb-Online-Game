@@ -97,7 +97,15 @@ public class Bomb : NetworkBehaviour
 
     void SpawnExplosion(Vector3 position)
     {
-        GameObject explosion = Instantiate(explosionPrefab, position, Quaternion.identity);
-        explosion.GetComponent<NetworkObject>().Spawn();
+        GameObject explosionObj = Instantiate(explosionPrefab, position, Quaternion.identity);
+
+        // NEW: Assign the killerID BEFORE spawning so the logic is ready on the server
+        Explosion explosionScript = explosionObj.GetComponent<Explosion>();
+        if (explosionScript != null)
+        {
+            explosionScript.killerId = ownerId; // 'ownerId' is already defined in your Bomb.cs
+        }
+
+        explosionObj.GetComponent<NetworkObject>().Spawn();
     }
 }

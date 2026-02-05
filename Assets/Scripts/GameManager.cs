@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
 using UnityEngine;
@@ -180,7 +181,7 @@ public class GameManager : NetworkBehaviour
             // If Wall lands on Player -> Kill Player
             if (hit.TryGetComponent(out PlayerMovement player))
             {
-                player.Die();
+                player.Die(player.OwnerClientId);
             }
         }
 
@@ -189,64 +190,93 @@ public class GameManager : NetworkBehaviour
     }
 
     // --- SUDDEN DEATH SPIRAL ---
+    //
     IEnumerator SuddenDeathRoutine()
     {
         suddenDeathStarted = true;
         Debug.Log("SUDDEN DEATH STARTED!");
 
-        // STOP FARMING: Stop spawning new coins
         StopCoroutine(SpawnCoinRoutine());
 
-        
         int minX = Mathf.RoundToInt(spawnAreaMin.x);
         int maxX = Mathf.RoundToInt(spawnAreaMax.x);
         int minY = Mathf.RoundToInt(spawnAreaMin.y);
         int maxY = Mathf.RoundToInt(spawnAreaMax.y);
 
-        // Calculate width and height
-        int currentWidth = maxX - minX;
-        int currentHeight = maxY - minY;
+        // Use a HashSet to ensure we don't pick the same spot twice (corners)
+        HashSet<Vector2> currentRingPositions = new HashSet<Vector2>();
 
-        // LOOP UNTIL REACH THE "FINAL ARENA" SIZE
-        while ((currentWidth > finalArenaSize || currentHeight > finalArenaSize) && gameActive.Value)
+        while (gameActive.Value)
         {
-            // 1. Top Row
-            if (currentHeight > finalArenaSize)
+            int currentWidth = maxX - minX;
+            int currentHeight = maxY - minY;
+
+            // If BOTH dimensions are small enough, stop!
+            if (currentWidth <= finalArenaSize && currentHeight <= finalArenaSize)
             {
-                for (int x = minX; x <= maxX; x++) { SpawnWall(x, maxY); yield return new WaitForSeconds(0.1f); }
-                maxY--;
+                break;
             }
 
-            // 2. Right Column
-            if (currentWidth > finalArenaSize)
-            {
-                for (int y = maxY; y >= minY; y--) { SpawnWall(maxX, y); yield return new WaitForSeconds(0.1f); }
-                maxX--;
-            }
+            currentRingPositions.Clear();
 
-            // 3. Bottom Row
-            if (currentHeight > finalArenaSize) // Check again in case maxY changed
+            // 1. CHECK HEIGHT: Only shrink Y if it's still too tall
+            bool shrinkY = currentHeight > finalArenaSize;
+            if (shrinkY)
             {
-                if (minY <= maxY)
+                for (int x = minX; x <= maxX; x++)
                 {
-                    for (int x = maxX; x >= minX; x--) { SpawnWall(x, minY); yield return new WaitForSeconds(0.1f); }
-                    minY++;
+                    currentRingPositions.Add(new Vector2(x, minY));
+                    currentRingPositions.Add(new Vector2(x, maxY));
                 }
             }
 
-            // 4. Left Column
-            if (currentWidth > finalArenaSize) // Check again
+            // 2. CHECK WIDTH: Only shrink X if it's still too wide
+            bool shrinkX = currentWidth > finalArenaSize;
+            if (shrinkX)
             {
-                if (minX <= maxX)
+                for (int y = minY; y <= maxY; y++)
                 {
-                    for (int y = minY; y <= maxY; y++) { SpawnWall(minX, y); yield return new WaitForSeconds(0.1f); }
-                    minX++;
+                    currentRingPositions.Add(new Vector2(minX, y));
+                    currentRingPositions.Add(new Vector2(maxX, y));
                 }
             }
 
-            // Update dimensions for the loop check
-            currentWidth = maxX - minX;
-            currentHeight = maxY - minY;
+            // --- WARNING PHASE ---
+            List<GameObject> activeWarnings = new List<GameObject>();
+            if (warningPrefab != null)
+            {
+                foreach (Vector2 pos in currentRingPositions)
+                {
+                    GameObject warning = Instantiate(warningPrefab, pos, Quaternion.identity);
+                    if (warning.TryGetComponent(out Unity.Netcode.NetworkObject netObj)) netObj.Spawn();
+                    activeWarnings.Add(warning);
+                }
+            }
+
+            yield return new WaitForSeconds(3.0f);
+
+            // --- CRUSH PHASE ---
+            foreach (var warn in activeWarnings)
+            {
+                if (warn != null)
+                {
+                    if (warn.TryGetComponent(out Unity.Netcode.NetworkObject netObj) && netObj.IsSpawned)
+                        netObj.Despawn();
+                    else
+                        Destroy(warn);
+                }
+            }
+
+            foreach (Vector2 pos in currentRingPositions)
+            {
+                SpawnWall((int)pos.x, (int)pos.y);
+            }
+
+            // 3. UPDATE INDICES (Only shrink the specific sides we worked on)
+            if (shrinkY) { minY++; maxY--; }
+            if (shrinkX) { minX++; maxX--; }
+
+            yield return new WaitForSeconds(2.0f);
         }
 
         Debug.Log("Final Arena Reached! Fight!");

@@ -1,104 +1,111 @@
-using System;
 using System.Collections.Generic;
 using Unity.Netcode;
 using UnityEngine;
+using Unity.Collections;
 
 public class ScoreBoardManager : NetworkBehaviour
 {
+    public static ScoreBoardManager Instance;
 
-    public static ScoreBoardManager Instance  { get; private set; }
-    
-    private NetworkList<PlayerStats> networkPlayerList = new NetworkList<PlayerStats>();
+    [Header("UI References")]
+    [SerializeField] private Transform scoreContainer;
+    [SerializeField] private GameObject playerEntryPrefab;
+
+    private NetworkList<PlayerStats> connectedPlayers;
 
     private void Awake()
     {
-        if( Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-        networkPlayerList.OnListChanged += OnPlayerListChanged;
-    }
-
-    private void OnPlayerListChanged(NetworkListEvent<PlayerStats> changeEvent)
-    {
-        List<PlayerStats> playerList = new List<PlayerStats>();
-
-        foreach (var player in networkPlayerList)
-        {
-            playerList.Add(player);
-            ScoreboardUI.Instance.UpdateScoreboard(playerList);
-        }
+        Instance = this;
+        connectedPlayers = new NetworkList<PlayerStats>();
     }
 
     public override void OnNetworkSpawn()
     {
-        if (IsServer)
+        if (scoreContainer == null)
         {
-            NetworkManager.Singleton.OnClientConnectedCallback += HandlePlayerConnected;
+            Debug.LogError("Score Container is empty! .");
+            return;
         }
+
+        connectedPlayers.OnListChanged += HandleListChanged;
+        UpdateScoreboardUI();
     }
 
-    private void HandlePlayerConnected(ulong playerId)
+    public override void OnNetworkDespawn()
     {
-        PlayerStats newPlayer = new PlayerStats
-        {
-            playerId = playerId,
-            score = 0
-        };
-        networkPlayerList.Add(newPlayer);
+        if (connectedPlayers != null)
+            connectedPlayers.OnListChanged -= HandleListChanged;
     }
 
     [Rpc(SendTo.Server)]
-    public void IncreasePlayerScoreRpc(ulong playerId, int scoreIncrease)
+    public void AddPlayerServerRpc(ulong id, string name)
     {
-        for (int i = 0; i < networkPlayerList.Count; i++)
+        foreach (var player in connectedPlayers)
         {
-            if (networkPlayerList[i].playerId == playerId)
+            if (player.playerId == id) return;
+        }
+
+        connectedPlayers.Add(new PlayerStats
+        {
+            playerId = id,
+            score = 0,
+            playerName = new FixedString32Bytes(name)
+        });
+    }
+
+    [Rpc(SendTo.Server)]
+    public void IncreasePlayerScoreRpc(ulong id, int amount)
+    {
+        for (int i = 0; i < connectedPlayers.Count; i++)
+        {
+            if (connectedPlayers[i].playerId == id)
             {
-                var player = networkPlayerList[i];
-                player.score += scoreIncrease;
+                var stats = connectedPlayers[i];
 
-                // Prevent negative score
-                if (player.score < 0) player.score = 0; 
+                int finalScore = stats.score + amount;
 
-                networkPlayerList[i] = player;
-
-                if (scoreIncrease < 0)
+                if (finalScore < 0)
                 {
-                    Debug.Log($"Player {playerId} lost {Mathf.Abs(scoreIncrease)} points!");
+                    finalScore = 0;
                 }
 
+                stats.score = finalScore;
+                connectedPlayers[i] = stats;
                 break;
             }
         }
     }
 
+    private void HandleListChanged(NetworkListEvent<PlayerStats> changeEvent)
+    {
+        UpdateScoreboardUI();
+    }
+
+    private void UpdateScoreboardUI()
+    {
+        if (scoreContainer == null) return; // Stop if UI is missing
+
+        foreach (Transform child in scoreContainer)
+        {
+            Destroy(child.gameObject);
+        }
+
+        foreach (var player in connectedPlayers)
+        {
+            GameObject entryObj = Instantiate(playerEntryPrefab, scoreContainer);
+            PlayerEntry entryScript = entryObj.GetComponent<PlayerEntry>();
+            entryScript.SetPlayerEntry(player.playerName.ToString(), player.score);
+        }
+    }
+
     public string GetWinnerName()
     {
-        if(networkPlayerList.Count == 0)
+        if (connectedPlayers.Count == 0) return "No Winner";
+        PlayerStats bestPlayer = connectedPlayers[0];
+        foreach (var p in connectedPlayers)
         {
-            return "No players connected";
+            if (p.score > bestPlayer.score) bestPlayer = p;
         }
-        PlayerStats topPlayer = networkPlayerList[0];
-
-        foreach (var player in networkPlayerList)
-        {
-            if (player.score > topPlayer.score)
-            {
-                topPlayer = player;
-            }
-        }
-
-        if(NetworkManager.Singleton.ConnectedClients.TryGetValue(topPlayer.playerId, out var client ) 
-            && client.PlayerObject != null && client.PlayerObject.TryGetComponent(out PlayerName playerNameComponent))
-        {         
-                return $"{playerNameComponent.GetPlayerName()} won!";
-           
-        }
-        return "Winner not found";
+        return $"{bestPlayer.playerName} Wins!";
     }
 }

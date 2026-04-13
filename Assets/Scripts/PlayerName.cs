@@ -1,46 +1,41 @@
 using UnityEngine;
 using Unity.Netcode;
 using Unity.Collections;
-using System;
+using System.Collections; 
 using TMPro;
 
 public class PlayerName : NetworkBehaviour
 {
-    [SerializeField] private TextMeshPro playerName;
+    [SerializeField] private TextMeshPro playerNameText;
 
     public NetworkVariable<FixedString32Bytes> networkPlayerName =
         new NetworkVariable<FixedString32Bytes>("Unknown", NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Owner);
 
-    public event Action<string> OnNameChanged;
-
     public override void OnNetworkSpawn()
     {
         if (IsOwner)
         {
-            string inputName = FindFirstObjectByType<UIManager>()
-                .GetComponent<UIManager>()
-                .nameinputField.text;
+            string savedName = PlayerPrefs.GetString("PlayerName", "Player");
+            networkPlayerName.Value = new FixedString32Bytes(savedName);
 
-            networkPlayerName.Value = new FixedString32Bytes(inputName);
-
+            StartCoroutine(RegisterWithScoreboard(savedName));
         }
 
-        playerName.text = networkPlayerName.Value.ToString();
-        networkPlayerName.OnValueChanged += NetworkPlayerName_OnValueChanged;
-
-        OnNameChanged?.Invoke(networkPlayerName.Value.ToString());
+        playerNameText.text = networkPlayerName.Value.ToString();
+        networkPlayerName.OnValueChanged += (oldVal, newVal) => {
+            playerNameText.text = newVal.ToString();
+        };
     }
 
-    private void NetworkPlayerName_OnValueChanged(FixedString32Bytes previousValue,
-        FixedString32Bytes newValue)
+    private IEnumerator RegisterWithScoreboard(string name)
     {
-        playerName.text = newValue.ToString();
-        OnNameChanged?.Invoke(newValue.Value);
-    }
+        // Keep checking until the Instance exists
+        while (ScoreBoardManager.Instance == null)
+        {
+            yield return null;
+        }
 
-    public string GetPlayerName()
-    {
-        return networkPlayerName.Value.ToString();
+        ScoreBoardManager.Instance.AddPlayerServerRpc(OwnerClientId, name);
     }
 }

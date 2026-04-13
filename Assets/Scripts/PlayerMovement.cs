@@ -52,7 +52,7 @@ public class PlayerMovement : NetworkBehaviour
 
         if (animator == null)
         {
-            Debug.LogError("ANIMATOR NOT FOUND! Make sure the Animator component is attached to the Player or a child object.");
+            Debug.LogError("ANIMATOR NOT FOUND! .");
         }
 
         isDead.OnValueChanged += OnDeathStateChanged;

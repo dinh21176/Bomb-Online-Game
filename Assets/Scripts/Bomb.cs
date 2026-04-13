@@ -7,7 +7,8 @@ public class Bomb : NetworkBehaviour
     [Header("References")]
     [SerializeField] GameObject explosionPrefab;
     [SerializeField] Collider2D bombCollider;
-    [SerializeField] LayerMask wallLayer; // 
+    [SerializeField] LayerMask wallLayer;
+    [SerializeField] LayerMask softWallLayer;
     [Header("Settings")]
     [SerializeField] float fuseTime = 2f;
 
@@ -44,7 +45,7 @@ public class Bomb : NetworkBehaviour
     {
         yield return new WaitForSeconds(fuseTime);
 
-        // Explode after the fuse time
+        // Explode 
         Detonate();
     }
 
@@ -84,7 +85,7 @@ public class Bomb : NetworkBehaviour
             Vector3 targetPos = transform.position + (direction * i);
 
             // RAYCAST CHECK: Is there a wall here?
-            // We use OverlapCircle to check the spot before spawning
+            // OverlapCircle to check the spot before spawning
             if (Physics2D.OverlapCircle(targetPos, 0.4f, wallLayer))
             {
                 // Stop the explosion in this direction.
@@ -99,11 +100,11 @@ public class Bomb : NetworkBehaviour
     {
         GameObject explosionObj = Instantiate(explosionPrefab, position, Quaternion.identity);
 
-        // NEW: Assign the killerID BEFORE spawning so the logic is ready on the server
+        //  Assign the killerID BEFORE spawning so the logic is ready on the server
         Explosion explosionScript = explosionObj.GetComponent<Explosion>();
         if (explosionScript != null)
         {
-            explosionScript.killerId = ownerId; // 'ownerId' is already defined in your Bomb.cs
+            explosionScript.killerId = ownerId;
         }
 
         explosionObj.GetComponent<NetworkObject>().Spawn();

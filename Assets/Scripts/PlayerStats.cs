@@ -1,15 +1,14 @@
 using System;
 using Unity.Netcode;
-using UnityEngine;
+using Unity.Collections; 
 
 public struct PlayerStats : INetworkSerializable, IEquatable<PlayerStats>
-
 {
     public ulong playerId;
     public int score;
+    public FixedString32Bytes playerName; 
 
-
-    public bool Equals (PlayerStats other)
+    public bool Equals(PlayerStats other)
     {
         return playerId == other.playerId;
     }
@@ -18,5 +17,6 @@ public struct PlayerStats : INetworkSerializable, IEquatable<PlayerStats>
     {
         serializer.SerializeValue(ref playerId);
         serializer.SerializeValue(ref score);
+        serializer.SerializeValue(ref playerName); 
     }
 }

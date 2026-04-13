@@ -47,10 +47,21 @@ public class GameManager : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
-        gameTime.OnValueChanged += UpdateGameInfoText;
+     gameTime.OnValueChanged += UpdateGameInfoText;
         gameActive.OnValueChanged += OnGameActiveStateChanged;
 
-        if (gameActive.Value)
+        if (!gameActive.Value)
+        {
+            if (IsHost)
+            {
+                gameInfoText.text = "Waiting for player, press Enter to start the game.";
+            }
+            else
+            {
+                gameInfoText.text = "Waiting for host to start the game.";
+            }
+        }
+        else 
         {
             gameInfoText.text = $"{gameTime.Value:F1}";
         }

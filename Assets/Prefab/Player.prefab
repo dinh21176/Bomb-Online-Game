@@ -62,7 +62,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  - {fileID: 3088541508715607278, guid: 9248dd52c47820d4bb77a531849341c2, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -107,8 +107,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: Unknown
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 9248dd52c47820d4bb77a531849341c2, type: 2}
+  m_sharedMaterial: {fileID: 3088541508715607278, guid: 9248dd52c47820d4bb77a531849341c2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -330,6 +330,8 @@ MonoBehaviour:
     m_InternalValue: 0
   isDead:
     m_InternalValue: 0
+  netInput:
+    m_InternalValue: {x: 0, y: 0}
   animator: {fileID: 0}
 --- !u!50 &4949047049839126307
 Rigidbody2D:
@@ -424,7 +426,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerName
   ShowTopMostFoldoutHeaderGroup: 1
-  playerName: {fileID: 5073320380784471684}
+  playerNameText: {fileID: 5073320380784471684}
   networkPlayerName:
     m_InternalValue:
       utf8LengthInBytes: 6

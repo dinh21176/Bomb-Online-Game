@@ -1,4 +1,4 @@
-using Unity.Netcode;
+﻿using Unity.Netcode;
 using UnityEngine;
 
 public class Coin : NetworkBehaviour
@@ -51,20 +51,41 @@ public class Coin : NetworkBehaviour
 
         if (other.CompareTag("Player"))
         {
-            ulong playerId = other.GetComponent<NetworkObject>().OwnerClientId;
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.PlayGlobalSFXRpc(1);
+            }
+
+            // 1. NẾU LÀ NGƯỜI CHƠI THẬT
             var player = other.GetComponent<PlayerMovement>();
-
-            // Handle Score items
-            if (scoreValue != 0)
-                ScoreBoardManager.Instance.IncreasePlayerScoreRpc(playerId, scoreValue);
-
-            // Handle Stat items
             if (player != null)
             {
+                ulong playerId = other.GetComponent<NetworkObject>().OwnerClientId;
+
+                // Cộng điểm
+                if (scoreValue != 0)
+                    ScoreBoardManager.Instance.IncreasePlayerScoreRpc(playerId, scoreValue);
+
+                // Nâng cấp chỉ số
                 if (coinType.Value == 3) player.UpgradeStat(0); // Speed
                 if (coinType.Value == 4) player.UpgradeStat(1); // Bomb Up
                 if (coinType.Value == 5) player.UpgradeStat(2); // Fire
                 if (coinType.Value == 6) player.UpgradeStat(3); // RARE
+            }
+
+            // 2. NẾU LÀ BOT AI
+            var bot = other.GetComponent<BotAI>();
+            if (bot != null)
+            {
+                // Cộng điểm cho Bot
+                if (scoreValue != 0)
+                    bot.botScore.Value += scoreValue;
+
+                // Nâng cấp chỉ số cho Bot
+                if (coinType.Value == 3) bot.UpgradeStat(0); // Speed
+                if (coinType.Value == 4) bot.UpgradeStat(1); // Bomb Up
+                if (coinType.Value == 5) bot.UpgradeStat(2); // Fire
+                if (coinType.Value == 6) bot.UpgradeStat(3); // RARE
             }
 
             DesTroyCoinRpc();

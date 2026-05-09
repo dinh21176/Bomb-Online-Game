@@ -3,27 +3,40 @@ using UnityEngine;
 
 public class DestructibleWall : NetworkBehaviour
 {
-    [SerializeField] private GameObject[] itemPrefabs; 
-    [SerializeField] private float dropRate = 0.3f; 
+    [Header("Item Settings")]
+    [SerializeField] private GameObject coinPrefab; // Kéo prefab Coin vào đây
+    [Range(0f, 1f)]
+    [SerializeField] private float dropChance = 0.35f; // 35% tỷ lệ rớt đồ
 
     public void DestroyWall()
     {
-        if (!IsServer) return; // Chỉ Server mới có quyền quyết định phá tường và rớt đồ
+        if (!IsServer) return; // Tránh việc Client tự vỡ tường gây lỗi đồng bộ
 
-        // Kiểm tra tỷ lệ rớt vật phẩm ngẫu nhiên
-        if (Random.value <= dropRate && itemPrefabs.Length > 0)
+        // Đổ xúc xắc xem có rớt đồ không
+        if (Random.value <= dropChance && coinPrefab != null)
         {
-            // Chọn ngẫu nhiên 1 item và spawn ra
-            int randomIndex = Random.Range(0, itemPrefabs.Length);
-            GameObject item = Instantiate(itemPrefabs[randomIndex], transform.position, Quaternion.identity);
+            GameObject item = Instantiate(coinPrefab, transform.position, Quaternion.identity);
+            NetworkObject netObj = item.GetComponent<NetworkObject>();
 
-            // Spawn item lên mạng để mọi client đều thấy
-            item.GetComponent<NetworkObject>().Spawn();
+            if (netObj != null)
+            {
+                netObj.Spawn(); // Đồng bộ item cho mọi người
 
-            // (Bạn có thể tái sử dụng logic Random item type từ GameManager.cs vào đây để set coinType)
+                // Tái sử dụng logic tỷ lệ độ hiếm (Rarity) của bạn
+                int type = 0;
+                float r = Random.Range(0f, 100f);
+                if (r > 95f) type = 6;       // Rare
+                else if (r > 90f) type = 1;  // Diamond
+                else if (r > 75f) type = 2;  // Trap
+                else if (r > 65f) type = 5;  // Fire
+                else if (r > 55f) type = 4;  // Bomb Up
+                else if (r > 45f) type = 3;  // Speed
+
+                item.GetComponent<Coin>().coinType.Value = type;
+            }
         }
 
-        // Hủy bức tường trên toàn mạng lưới
+        // Hủy bức tường
         GetComponent<NetworkObject>().Despawn(true);
     }
 }

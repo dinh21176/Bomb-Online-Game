@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using Unity.Netcode;
@@ -17,6 +17,8 @@ public class UIManager : MonoBehaviour
         hostButton.onClick.AddListener(Host);
         joinButton.onClick.AddListener(Join);
 
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(AudioManager.Instance.lobbyBGM);
     }
 
     void Host()
@@ -25,6 +27,9 @@ public class UIManager : MonoBehaviour
         menu.SetActive(false);
         gameInfoText.gameObject.SetActive(true);
         gameInfoText.text = "Press Enter to start";
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(AudioManager.Instance.lobbyBGM);
     }
 
     void Join()
@@ -33,5 +38,8 @@ public class UIManager : MonoBehaviour
         menu.SetActive(false);
         gameInfoText.gameObject.SetActive(true);
         gameInfoText.text = "Waiting for host to start the game";
+
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(AudioManager.Instance.lobbyBGM);
     }
 }

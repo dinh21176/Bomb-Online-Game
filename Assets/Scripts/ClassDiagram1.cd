@@ -1,0 +1,179 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="AudioManager">
+    <Position X="10.25" Y="3" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAUAEAAAUAAQAACAUAAAQAAAAEA=</HashCode>
+      <FileName>Assets\Scripts\AudioManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Bomb">
+    <Position X="10.25" Y="0.75" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAgAACCAAAAAAQAAAAAAAgAAABAAUAMCCAAAAIAACAA=</HashCode>
+      <FileName>Assets\Scripts\Bomb.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="BotAI">
+    <Position X="8.5" Y="0.5" Width="1.5" />
+    <Members>
+      <Method Name="Die" Hidden="true" />
+    </Members>
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>RQRRECAAEBABAUAwAAQAAQAAABAEAAGEDUAEUAAAiKA=</HashCode>
+      <FileName>Assets\Scripts\BotAI.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Coin">
+    <Position X="11.75" Y="0.75" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AIAAgAAAAAAACCAAAAAABAICAEAgAACAGAAAAAAMAAA=</HashCode>
+      <FileName>Assets\Scripts\Coin.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="DestructibleWall">
+    <Position X="20.5" Y="7" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAIAAAAAAAAgAA=</HashCode>
+      <FileName>Assets\Scripts\DestructibleWall.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Explosion">
+    <Position X="10.25" Y="4.75" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAACAQAAAAAAAAAAAAAAAAAEAAAAAACAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Scripts\Explosion.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="GameManager">
+    <Position X="6.75" Y="1" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gAQAAAiAACBQBIgAAYAsAABgDAAEAQIMSAAwAAAQBEA=</HashCode>
+      <FileName>Assets\Scripts\GameManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="MapData">
+    <Position X="13.25" Y="0.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAACAAAAAA=</HashCode>
+      <FileName>Assets\Scripts\MapData.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="MapGenerator">
+    <Position X="13.75" Y="2.75" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAEAAAQBAAAAAAAAIAAAAAAAQACAAAAIAEA=</HashCode>
+      <FileName>Assets\Scripts\MapGenerator.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PlayerEntry">
+    <Position X="14.75" Y="0.5" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAACABAEAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Scripts\PlayerEntry.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PlayerMovement">
+    <Position X="18.25" Y="0.75" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>BCQQQiAJQiAEAAAsCAAAAQMAABAIgCJACEAAAggACQA=</HashCode>
+      <FileName>Assets\Scripts\PlayerMovement.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="PlayerName">
+    <Position X="16.75" Y="2.25" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAAAAAAAEQAAAAAAAABAAAACAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Scripts\PlayerName.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="ScoreBoardManager">
+    <Position X="15.75" Y="4" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAIAAAACAAgAAAAAAgAAAAAAQAABAASAAABABAAEI=</HashCode>
+      <FileName>Assets\Scripts\ScoreBoardManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="UIManager">
+    <Position X="16.5" Y="0.5" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAgAACBAAAgAAAAAAAgAAAAACAAAAAACAAAAAAI=</HashCode>
+      <FileName>Assets\Scripts\UIManager.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="WarningEffect">
+    <Position X="20.25" Y="2.25" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+      <Compartment Name="Methods" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAQAAAAAAAABAAAAAAAAAAAAAAAAAgAAAAAAAAAAAEA=</HashCode>
+      <FileName>Assets\Scripts\WarningEffect.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="Unity.Netcode.NetworkBehaviour">
+    <Position X="12.75" Y="7.75" Width="1.5" />
+    <TypeIdentifier />
+  </Class>
+  <Struct Name="PlayerStats">
+    <Position X="19.5" Y="4.5" Width="1.5" />
+    <Compartments>
+      <Compartment Name="Fields" Collapsed="true" />
+    </Compartments>
+    <TypeIdentifier>
+      <HashCode>AAAAAAAACAAAAAAAgAEIAQAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Assets\Scripts\PlayerStats.cs</FileName>
+    </TypeIdentifier>
+    <Lollipop Position="0.2" />
+  </Struct>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>

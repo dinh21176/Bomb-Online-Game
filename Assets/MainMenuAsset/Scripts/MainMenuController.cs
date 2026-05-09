@@ -16,6 +16,9 @@ public class MainMenuManager : MonoBehaviour
 
     private void Start()
     {
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayBGM(AudioManager.Instance.mainMenuBGM);
+
         // 1. Setup Listeners
         createButton.onClick.AddListener(OnCreateClicked);
         joinButton.onClick.AddListener(OnJoinClicked);

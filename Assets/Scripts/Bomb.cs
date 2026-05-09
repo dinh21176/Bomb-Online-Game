@@ -7,7 +7,7 @@ public class Bomb : NetworkBehaviour
     [Header("References")]
     [SerializeField] GameObject explosionPrefab;
     [SerializeField] Collider2D bombCollider;
-    [SerializeField] LayerMask wallLayer;
+    [SerializeField] LayerMask hardWallLayer;
     [SerializeField] LayerMask softWallLayer;
     [Header("Settings")]
     [SerializeField] float fuseTime = 2f;
@@ -84,11 +84,18 @@ public class Bomb : NetworkBehaviour
         {
             Vector3 targetPos = transform.position + (direction * i);
 
-            // RAYCAST CHECK: Is there a wall here?
-            // OverlapCircle to check the spot before spawning
-            if (Physics2D.OverlapCircle(targetPos, 0.4f, wallLayer))
+            // Check Layer
+            LayerMask obstacles = hardWallLayer | softWallLayer;
+
+            Collider2D hit = Physics2D.OverlapCircle(targetPos, 0.4f, obstacles);
+
+            if (hit != null)
             {
-                // Stop the explosion in this direction.
+                if (((1 << hit.gameObject.layer) & softWallLayer) != 0)
+                {
+                    SpawnExplosion(targetPos);
+                }
+
                 break;
             }
 

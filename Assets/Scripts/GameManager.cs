@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using Unity.Netcode;
@@ -13,10 +13,11 @@ public class GameManager : NetworkBehaviour
     [SerializeField] GameObject coinPrefab;
     [SerializeField] GameObject wallPrefab;
     [SerializeField] GameObject warningPrefab; // Optional visual
+    [SerializeField] GameObject botPrefab;
 
     [Header("Map Settings")]
-    [SerializeField] private Vector2 spawnAreaMin;
-    [SerializeField] private Vector2 spawnAreaMax;
+    public Vector2 spawnAreaMin;
+    public Vector2 spawnAreaMax;
     [Tooltip("Layers that block coins from spawning (e.g., Wall, Bomb, Player)")]
     [SerializeField] private LayerMask obstructionLayer; 
 
@@ -26,13 +27,14 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private float gameDuration = 120f;
     [SerializeField] int finalArenaSize = 15;
 
+    [HideInInspector] public int selectedMapIndex = 0; 
     public static GameManager Instance { get; private set; }
 
     // Network Variables
     public NetworkVariable<bool> gameActive = new NetworkVariable<bool>(false);
     public NetworkVariable<float> gameTime = new NetworkVariable<float>(10f);
 
-    private bool suddenDeathStarted = false;
+    public bool suddenDeathStarted = false;
 
     private void Awake()
     {
@@ -97,7 +99,43 @@ public class GameManager : NetworkBehaviour
         suddenDeathStarted = false;
         gameActive.Value = true;
 
-        StartCoroutine(SpawnCoinRoutine());
+        if (MapGenerator.Instance != null)
+        {
+            MapGenerator.Instance.GenerateMap(selectedMapIndex);
+        }
+
+        int maxPlayers = 4;
+        int currentPlayerCount = NetworkManager.Singleton.ConnectedClientsList.Count;
+
+        // 1. DỊCH CHUYỂN NGƯỜI CHƠI THẬT
+        int index = 0;
+        foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
+        {
+            if (client.PlayerObject != null)
+            {
+                var playerMovement = client.PlayerObject.GetComponent<PlayerMovement>();
+                if (playerMovement != null)
+                {
+                    Vector2 startPos = GetCornerSpawnPosition(index);
+                    playerMovement.ForceTeleport(startPos);
+                    index++;
+                }
+            }
+        }
+
+        // 2. SINH RA BOT ĐỂ LẤP ĐẦY SỐ LƯỢNG (4 - số người thật)
+        int botsToSpawn = maxPlayers - currentPlayerCount;
+        for (int i = 0; i < botsToSpawn; i++)
+        {
+            // Tính vị trí góc còn dư cho Bot
+            Vector2 botPos = GetCornerSpawnPosition(index);
+
+            // Tạo Bot trên Server
+            GameObject bot = Instantiate(botPrefab, botPos, Quaternion.identity);
+            bot.GetComponent<NetworkObject>().Spawn();
+
+            index++;
+        }
     }
 
     IEnumerator SpawnCoinRoutine()
@@ -111,8 +149,21 @@ public class GameManager : NetworkBehaviour
 
     private void OnGameActiveStateChanged(bool previousValue, bool newValue)
     {
-        if (newValue == true) gameInfoText.text = $"{gameTime.Value:F1}";
-        else gameInfoText.text = "Game Over!!";
+        if (newValue == true)
+        {
+            gameInfoText.text = $"{gameTime.Value:F1}";
+
+            // KHI HOST BẤM ENTER -> PHÁT SOUND GAMESTART VÀ NHẠC THUYỀN CHIẾN
+            if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(AudioManager.Instance.gameStartSFX);
+                AudioManager.Instance.PlayBGM(AudioManager.Instance.gameplayBGM);
+            }
+        }
+        else
+        {
+            gameInfoText.text = "Game Over!!";
+        }
     }
 
     // ---  SPAWN LOGIC ---
@@ -287,6 +338,9 @@ public class GameManager : NetworkBehaviour
             if (shrinkY) { minY++; maxY--; }
             if (shrinkX) { minX++; maxX--; }
 
+            spawnAreaMin = new Vector2(minX, minY);
+            spawnAreaMax = new Vector2(maxX, maxY);
+
             yield return new WaitForSeconds(2.0f);
         }
 
@@ -306,6 +360,8 @@ public class GameManager : NetworkBehaviour
         foreach (Coin coin in coins) { coin.DesTroyCoinRpc(); }
 
         UpdateWinnerRpc();
+
+        MapGenerator.Instance.ClearCurrentMap();
     }
 
     [Rpc(SendTo.ClientsAndHost)]
@@ -341,4 +397,36 @@ public class GameManager : NetworkBehaviour
         // return center if no safe spot found
         return Vector2.zero;
     }
+
+    // Hàm này tự động tính toán 4 góc an toàn bên trong bức tường bao quanh
+    public Vector2 GetCornerSpawnPosition(int playerIndex)
+    {
+        // Lấy tọa độ Min Max mà bạn đã set trong GameManager
+        float minX = Mathf.Round(spawnAreaMin.x);
+        float maxX = Mathf.Round(spawnAreaMax.x);
+        float minY = Mathf.Round(spawnAreaMin.y);
+        float maxY = Mathf.Round(spawnAreaMax.y);
+
+        // Cộng trừ 1 để nhân vật đứng lùi vào trong, không bị đè lên bức tường viền ngoài cùng
+        Vector2[] corners = new Vector2[] {
+            new Vector2(minX + 1, maxY - 1), // Góc 0: Trên cùng bên trái
+            new Vector2(maxX - 1, minY + 1), // Góc 1: Dưới cùng bên phải
+            new Vector2(minX + 1, minY + 1), // Góc 2: Dưới cùng bên trái
+            new Vector2(maxX - 1, maxY - 1)  // Góc 3: Trên cùng bên phải
+        };
+
+        return corners[playerIndex % 4]; // Trả về vị trí tương ứng với thứ tự Player
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    public void PlayGlobalSFXRpc(int soundID)
+    {
+        if (AudioManager.Instance == null) return;
+
+        if (soundID == 1) // ID 1 = Nhặt item
+        {
+            AudioManager.Instance.PlaySFX(AudioManager.Instance.collectItemSFX);
+        }
+    }
+
 }

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 using Unity.Netcode.Components;
@@ -58,23 +58,48 @@ public class PlayerMovement : NetworkBehaviour
         isDead.OnValueChanged += OnDeathStateChanged;
     }
 
+    public override void OnNetworkSpawn()
+    {
+        base.OnNetworkSpawn();
+
+        // CHỈ SERVER mới biết kích thước Map để tính góc
+        if (IsServer)
+        {
+            int spawnIndex = (int)(OwnerClientId % 4);
+            if (GameManager.Instance != null)
+            {
+                Vector2 pos = GameManager.Instance.GetCornerSpawnPosition(spawnIndex);
+
+                // Thay vì dùng lệnh Teleport trực tiếp gây lỗi, ta gọi ForceTeleport.
+                // Hàm này sẽ dùng RPC (TeleportPlayerRpc) để ra lệnh cho Client tự dịch chuyển một cách an toàn.
+                ForceTeleport(pos);
+            }
+        }
+    }
+
     private void Update()
     {
         if (isDead.Value)
         {
-            if (IsOwner)
-            {
-                netInput.Value = Vector2.zero; // Reset network input to 0,0
-            }
-            return; 
+            if (IsOwner) netInput.Value = Vector2.zero;
+            return;
         }
 
         if (IsOwner)
         {
-            float x = Input.GetAxis("Horizontal");
-            float y = Input.GetAxis("Vertical");
-            Vector2 currentInput = new Vector2(x, y).normalized;
+            // Thay đổi 1: Dùng GetAxisRaw thay vì GetAxis để lấy số chẵn (-1, 0, 1). 
+            // Giúp nhân vật di chuyển dứt khoát, không bị trượt (slide).
+            float x = Input.GetAxisRaw("Horizontal");
+            float y = Input.GetAxisRaw("Vertical");
 
+            // Thay đổi 2: NGĂN CHẶN ĐI CHÉO
+            // Nếu người chơi đang bấm phím đi ngang (Trái/Phải), ta khóa luôn trục dọc.
+            if (x != 0)
+            {
+                y = 0;
+            }
+
+            Vector2 currentInput = new Vector2(x, y).normalized;
             netInput.Value = currentInput;
 
             if (Input.GetKeyDown(KeyCode.Space))
@@ -84,6 +109,7 @@ public class PlayerMovement : NetworkBehaviour
         }
         UpdateAnimations();
     }
+
 
     private void FixedUpdate()
     {
@@ -277,16 +303,25 @@ public class PlayerMovement : NetworkBehaviour
     {
         yield return new WaitForSeconds(3f);
 
-        // Calculate the safe position on the Server (where the map data is valid)
-        Vector2 respawnPos = transform.position; // Default to current if manager missing
+        Vector2 respawnPos = transform.position;
 
         if (GameManager.Instance != null)
         {
-            respawnPos = GameManager.Instance.GetSafeSpawnPosition();
+            // KIỂM TRA: Có đang trong vòng bo sinh tử không?
+            if (GameManager.Instance.suddenDeathStarted)
+            {
+                // Nếu CÓ: Dùng hàm GetSafeSpawnPosition để máy quét tìm 1 ô trống ngẫu nhiên không có gạch/bom
+                respawnPos = GameManager.Instance.GetSafeSpawnPosition();
+            }
+            else
+            {
+                // Nếu KHÔNG: Hồi sinh về góc an toàn của mình như bình thường
+                int spawnIndex = (int)(OwnerClientId % 4);
+                respawnPos = GameManager.Instance.GetCornerSpawnPosition(spawnIndex);
+            }
         }
 
         isDead.Value = false;
-
         TeleportPlayerRpc(respawnPos);
     }
 
@@ -316,4 +351,12 @@ public class PlayerMovement : NetworkBehaviour
 
         Debug.Log($"Respawned (Teleported) to {position}");
     }
+
+    // Hàm này cho phép Server ra lệnh cho Player dịch chuyển tức thời
+    public void ForceTeleport(Vector2 position)
+    {
+        if (!IsServer) return;
+        TeleportPlayerRpc(position);
+    }
+
 }

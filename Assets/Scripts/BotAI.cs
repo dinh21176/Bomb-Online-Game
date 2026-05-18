@@ -34,6 +34,7 @@ public class BotAI : NetworkBehaviour
     private float bombCooldown = 2.5f;
     private float stuckTimer = 0f;
 
+    private Vector2 lastClientPos;
     private Vector2[] directions = { Vector2.up, Vector2.down, Vector2.left, Vector2.right };
 
     public override void OnNetworkSpawn()
@@ -46,18 +47,50 @@ public class BotAI : NetworkBehaviour
         botName.OnValueChanged += (oldValue, newValue) => { if (nameText != null) nameText.text = newValue.ToString(); };
         if (nameText != null) nameText.text = botName.Value.ToString();
 
-        if (!IsServer) { enabled = false; return; }
+        if (!IsServer)
+        {
+            lastClientPos = transform.position;
+            return;
+        }
 
         SnapToGrid();
     }
 
     private void Update()
     {
-        if (!IsServer || isDead) return;
+        if (isDead) return;
 
-        // --- NÂNG CẤP: PHẢN XẠ NÉ KHẨN CẤP MID-MOVEMENT ---
-        // Dù đang đi giữa chừng nhưng nếu ô Đích hoặc ô Hiện Tại tự dưng nguy hiểm -> Đổi hướng ngay lập tức!
+        if (!IsServer)
+        {
+            Vector2 currentPos = transform.position;
+            float dist = Vector2.Distance(currentPos, lastClientPos);
+
+            // Nếu khoảng cách thay đổi đủ lớn (đang di chuyển)
+            if (dist > 0.001f)
+            {
+                Vector2 moveDir = (currentPos - lastClientPos).normalized;
+                if (Mathf.Abs(moveDir.x) > Mathf.Abs(moveDir.y)) moveDir = new Vector2(Mathf.Sign(moveDir.x), 0);
+                else moveDir = new Vector2(0, Mathf.Sign(moveDir.y));
+
+                UpdateAnimations(moveDir);
+            }
+            else
+            {
+                UpdateAnimations(Vector2.zero); // Đứng im
+            }
+
+            lastClientPos = currentPos;
+            return;
+        }
+
+        if (GameManager.Instance != null && !GameManager.Instance.gameActive.Value)
+        {
+            UpdateAnimations(Vector2.zero);
+            return;
+        }
+
         Vector2 currentGridPos = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y));
+
         if (IsTileDangerous(targetPosition) || IsTileDangerous(currentGridPos))
         {
             Vector2 escape = FindEscapeRoute(currentGridPos);
@@ -65,8 +98,10 @@ public class BotAI : NetworkBehaviour
         }
 
         transform.position = Vector2.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
-        Vector2 moveDir = (targetPosition - (Vector2)transform.position).normalized;
-        UpdateAnimations(moveDir);
+
+        // Trực tiếp update animation cho Host
+        Vector2 moveDirServer = (targetPosition - (Vector2)transform.position).normalized;
+        UpdateAnimations(moveDirServer);
 
         if (Vector2.Distance(transform.position, targetPosition) <= 0.05f)
         {
@@ -100,11 +135,11 @@ public class BotAI : NetworkBehaviour
         }
         else if (FindNearbyTarget(currentPos, itemLayer, out Vector2 itemPos))
         {
-            targetPosition = GetNextMoveTo(currentPos, itemPos);
+            targetPosition = GetNextMoveToBFS(currentPos, itemPos);
         }
         else if (FindNearbyTarget(currentPos, playerLayer, out Vector2 playerPos) && Vector2.Distance(currentPos, playerPos) > 1f)
         {
-            targetPosition = GetNextMoveTo(currentPos, playerPos);
+            targetPosition = GetNextMoveToBFS(currentPos, playerPos);
         }
         else if (IsNextToTarget(currentPos, softWallLayer) || IsNextToTarget(currentPos, playerLayer))
         {
@@ -120,25 +155,55 @@ public class BotAI : NetworkBehaviour
         yield return null;
     }
 
+    Vector2 GetNextMoveToBFS(Vector2 startPos, Vector2 targetPos)
+    {
+        Queue<Vector2> queue = new Queue<Vector2>();
+        Dictionary<Vector2, Vector2> cameFrom = new Dictionary<Vector2, Vector2>();
+        queue.Enqueue(startPos);
+        cameFrom[startPos] = startPos;
+        bool found = false;
+        int maxLoops = 200;
+        int loopCount = 0;
+
+        while (queue.Count > 0 && loopCount < maxLoops)
+        {
+            loopCount++;
+            Vector2 curr = queue.Dequeue();
+            if (curr == targetPos) { found = true; break; }
+            foreach (Vector2 dir in directions)
+            {
+                Vector2 next = curr + dir;
+                if (!cameFrom.ContainsKey(next) && !Physics2D.OverlapCircle(next, 0.4f, obstacleLayer) && !IsTileDangerous(next))
+                {
+                    cameFrom[next] = curr;
+                    queue.Enqueue(next);
+                }
+            }
+        }
+        if (found)
+        {
+            Vector2 step = targetPos;
+            while (cameFrom.ContainsKey(step) && cameFrom[step] != startPos) step = cameFrom[step];
+            return step;
+        }
+        return FindRandomValidDirection(startPos);
+    }
+
     Vector2 FindEscapeRoute(Vector2 startPos, Vector2? simulatedBombPos = null)
     {
         Queue<Vector2> queue = new Queue<Vector2>();
         Dictionary<Vector2, Vector2> cameFrom = new Dictionary<Vector2, Vector2>();
-
         queue.Enqueue(startPos);
         cameFrom[startPos] = startPos;
         Vector2 safeSpot = startPos;
+        int maxLoops = 200;
+        int loopCount = 0;
 
-        while (queue.Count > 0)
+        while (queue.Count > 0 && loopCount < maxLoops)
         {
+            loopCount++;
             Vector2 curr = queue.Dequeue();
-
-            if (!IsTileDangerous(curr, simulatedBombPos))
-            {
-                safeSpot = curr;
-                break;
-            }
-
+            if (!IsTileDangerous(curr, simulatedBombPos)) { safeSpot = curr; break; }
             foreach (Vector2 dir in directions)
             {
                 Vector2 next = curr + dir;
@@ -149,56 +214,49 @@ public class BotAI : NetworkBehaviour
                 }
             }
         }
-
         if (safeSpot == startPos) return startPos;
-
         Vector2 step = safeSpot;
-        while (cameFrom[step] != startPos) step = cameFrom[step];
+        while (cameFrom.ContainsKey(step) && cameFrom[step] != startPos) step = cameFrom[step];
         return step;
     }
 
-    bool CanEscapeAfterPlanting(Vector2 pos)
-    {
-        return FindEscapeRoute(pos, pos) != pos;
-    }
+    bool CanEscapeAfterPlanting(Vector2 pos) { return FindEscapeRoute(pos, pos) != pos; }
 
     bool IsTileDangerous(Vector2 pos, Vector2? simulatedBombPos = null)
     {
-        // 1. NÂNG CẤP: BOT ĐÃ CÓ THỂ NHÌN THẤY "TIA LỬA" (EXPLOSION) ĐANG CHÁY
-        Explosion[] allExplosions = FindObjectsByType<Explosion>(FindObjectsSortMode.None);
-        foreach (Explosion exp in allExplosions)
+        // --- ĐÃ FIX: CHẠM VÀO TIA LỬA THẬT (Bắt bằng vật lý để chống hở frame) ---
+        Collider2D[] hits = Physics2D.OverlapCircleAll(pos, 0.4f);
+        foreach (var hit in hits)
         {
-            Vector2 expPos = new Vector2(Mathf.Round(exp.transform.position.x), Mathf.Round(exp.transform.position.y));
-            if (pos == expPos) return true;
+            // Kiểm tra xem tại vị trí này có bất kỳ Collider nào là tia lửa không
+            if (hit.GetComponent<Explosion>() != null || hit.CompareTag("Explosion") || hit.name.Contains("Explosion"))
+            {
+                return true;
+            }
         }
 
-        // 2. CHECK BOM SẮP NỔ
+        // --- CHECK BOM SẮP NỔ ---
         Bomb[] allBombs = FindObjectsByType<Bomb>(FindObjectsSortMode.None);
         List<Vector2> dangerCenters = new List<Vector2>();
-
         foreach (Bomb bomb in allBombs) dangerCenters.Add(new Vector2(Mathf.Round(bomb.transform.position.x), Mathf.Round(bomb.transform.position.y)));
         if (simulatedBombPos.HasValue) dangerCenters.Add(simulatedBombPos.Value);
 
         foreach (Vector2 center in dangerCenters)
         {
             if (pos == center) return true;
-
             foreach (Vector2 dir in directions)
             {
                 for (int i = 1; i <= 6; i++)
                 {
                     Vector2 checkPos = center + (dir * i);
-
-                    // NÂNG CẤP: Phải check nguy hiểm TRƯỚC KHI break (để đề phòng đứng ngay trên ô có tường)
                     if (pos == checkPos) return true;
-                    if (Physics2D.OverlapCircle(checkPos, 0.4f, obstacleLayer)) break;
+                    if (Physics2D.OverlapCircle(checkPos, 0.4f, obstacleLayer) || Physics2D.OverlapCircle(checkPos, 0.4f, softWallLayer)) break;
                 }
             }
         }
         return false;
     }
 
-    // --- CÁC HÀM PHỤ TRỢ (Giữ nguyên) ---
     bool FindNearbyTarget(Vector2 startPos, LayerMask targetLayer, out Vector2 targetPos)
     {
         Collider2D hit = Physics2D.OverlapCircle(startPos, 5f, targetLayer);
@@ -219,22 +277,6 @@ public class BotAI : NetworkBehaviour
             if (hit != null && hit.gameObject != this.gameObject) return true;
         }
         return false;
-    }
-
-    Vector2 GetNextMoveTo(Vector2 startPos, Vector2 targetPos)
-    {
-        Vector2 bestMove = startPos;
-        float minDistance = float.MaxValue;
-        foreach (Vector2 dir in directions)
-        {
-            Vector2 nextPos = startPos + dir;
-            if (!Physics2D.OverlapCircle(nextPos, 0.4f, obstacleLayer) && !IsTileDangerous(nextPos))
-            {
-                float dist = Vector2.Distance(nextPos, targetPos);
-                if (dist < minDistance) { minDistance = dist; bestMove = nextPos; }
-            }
-        }
-        return bestMove;
     }
 
     Vector2 FindRandomValidDirection(Vector2 pos)
@@ -285,7 +327,7 @@ public class BotAI : NetworkBehaviour
         SetBotVisualsRpc(false);
         transform.position = new Vector2(-999, -999);
         yield return new WaitForSeconds(3f);
-        if (GameManager.Instance != null)
+        if (GameManager.Instance != null && GameManager.Instance.gameActive.Value)
         {
             Vector2 safePos = GameManager.Instance.GetSafeSpawnPosition();
             if (safePos != Vector2.zero)

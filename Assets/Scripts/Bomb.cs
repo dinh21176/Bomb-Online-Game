@@ -18,10 +18,11 @@ public class Bomb : NetworkBehaviour
 
     public override void OnNetworkSpawn()
     {
+        bombCollider.isTrigger = true;
+
         if (IsServer)
         {
             // Initially a trigger so the player doesn't get stuck
-            bombCollider.isTrigger = true;
             StartCoroutine(ExplodeRoutine());
         }
     }
@@ -35,7 +36,7 @@ public class Bomb : NetworkBehaviour
     // Makes the bomb solid
     private void OnTriggerExit2D(Collider2D other)
     {
-        if (other.CompareTag("Player") && IsServer)
+        if (other.CompareTag("Player"))
         {
             bombCollider.isTrigger = false; 
         }

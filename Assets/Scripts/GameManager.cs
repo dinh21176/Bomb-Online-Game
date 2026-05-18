@@ -101,7 +101,14 @@ public class GameManager : NetworkBehaviour
 
         if (MapGenerator.Instance != null)
         {
+            int totalMaps = MapGenerator.Instance.mapDatabase.Length;
+            if (totalMaps > 0)
+            {
+                selectedMapIndex = Random.Range(0, totalMaps);
+            }
+
             MapGenerator.Instance.GenerateMap(selectedMapIndex);
+            AutoFitCamera();
         }
 
         int maxPlayers = 4;
@@ -249,6 +256,7 @@ public class GameManager : NetworkBehaviour
 
         GameObject wall = Instantiate(wallPrefab, pos, Quaternion.identity);
         wall.GetComponent<NetworkObject>().Spawn();
+        if (MapGenerator.Instance != null) MapGenerator.Instance.RegisterWall(wall);
     }
 
     // --- SUDDEN DEATH SPIRAL ---
@@ -427,6 +435,31 @@ public class GameManager : NetworkBehaviour
         {
             AudioManager.Instance.PlaySFX(AudioManager.Instance.collectItemSFX);
         }
+    }
+
+    public void AutoFitCamera()
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return;
+
+        // Tính toán chiều rộng và chiều cao của Map hiện tại
+        float mapWidth = spawnAreaMax.x - spawnAreaMin.x;
+        float mapHeight = spawnAreaMax.y - spawnAreaMin.y;
+
+        // Viền đệm (Padding) để map không dính sát rạt vào mép màn hình
+        float padding = 3f;
+
+        // Tính toán Size theo tỷ lệ màn hình (Aspect Ratio)
+        float orthoSizeY = (mapHeight / 2f) + padding;
+        float orthoSizeX = ((mapWidth / 2f) + padding) / cam.aspect;
+
+        // Lấy kích thước lớn nhất để đảm bảo Map không bị cắt xén
+        cam.orthographicSize = Mathf.Max(orthoSizeX, orthoSizeY);
+
+        // Đưa Camera về đúng tâm của Map
+        float centerX = (spawnAreaMax.x + spawnAreaMin.x) / 2f;
+        float centerY = (spawnAreaMax.y + spawnAreaMin.y) / 2f;
+        cam.transform.position = new Vector3(centerX, centerY, -10f); // -10f là z offset mặc định của 2D
     }
 
 }

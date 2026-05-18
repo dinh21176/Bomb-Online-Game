@@ -105,7 +105,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Unknown
+  m_text: Bot
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 9248dd52c47820d4bb77a531849341c2, type: 2}
   m_sharedMaterial: {fileID: 3088541508715607278, guid: 9248dd52c47820d4bb77a531849341c2, type: 2}

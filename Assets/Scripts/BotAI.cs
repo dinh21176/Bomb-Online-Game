@@ -10,7 +10,7 @@ public class BotAI : NetworkBehaviour
     [Header("Settings")]
     [SerializeField] float moveSpeed = 4.5f;
     [SerializeField] GameObject bombPrefab;
-    [SerializeField] TextMeshPro nameText; // Kéo thả text hiển thị tên của Bot vào đây
+    [SerializeField] TextMeshPro nameText;
 
     [Header("Layers")]
     [SerializeField] LayerMask obstacleLayer;
@@ -18,7 +18,6 @@ public class BotAI : NetworkBehaviour
     [SerializeField] LayerMask playerLayer;
     [SerializeField] LayerMask itemLayer;
 
-    // --- BIẾN MẠNG ĐỂ QUẢN LÝ ĐIỂM VÀ TÊN ---
     public NetworkVariable<FixedString32Bytes> botName = new NetworkVariable<FixedString32Bytes>("Bot");
     public NetworkVariable<int> botScore = new NetworkVariable<int>(0);
 
@@ -27,7 +26,7 @@ public class BotAI : NetworkBehaviour
     private SpriteRenderer[] renderers;
     private Vector2 targetPosition;
 
-    private bool isThinking = false;
+    private Coroutine thinkingCoroutine;
     public bool isDead = false;
     public int explosionRange = 2;
 
@@ -43,12 +42,7 @@ public class BotAI : NetworkBehaviour
         col = GetComponent<Collider2D>();
         renderers = GetComponentsInChildren<SpriteRenderer>();
 
-        // Cập nhật tên hiển thị cho Bot ("Bot 1", "Bot 2"...)
-        if (IsServer)
-        {
-            botName.Value = "Bot " + Random.Range(100, 999);
-        }
-
+        if (IsServer) botName.Value = "Bot " + Random.Range(100, 999);
         botName.OnValueChanged += (oldValue, newValue) => { if (nameText != null) nameText.text = newValue.ToString(); };
         if (nameText != null) nameText.text = botName.Value.ToString();
 
@@ -61,8 +55,16 @@ public class BotAI : NetworkBehaviour
     {
         if (!IsServer || isDead) return;
 
-        transform.position = Vector2.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
+        // --- NÂNG CẤP: PHẢN XẠ NÉ KHẨN CẤP MID-MOVEMENT ---
+        // Dù đang đi giữa chừng nhưng nếu ô Đích hoặc ô Hiện Tại tự dưng nguy hiểm -> Đổi hướng ngay lập tức!
+        Vector2 currentGridPos = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y));
+        if (IsTileDangerous(targetPosition) || IsTileDangerous(currentGridPos))
+        {
+            Vector2 escape = FindEscapeRoute(currentGridPos);
+            if (escape != currentGridPos) targetPosition = escape;
+        }
 
+        transform.position = Vector2.MoveTowards(transform.position, targetPosition, moveSpeed * Time.deltaTime);
         Vector2 moveDir = (targetPosition - (Vector2)transform.position).normalized;
         UpdateAnimations(moveDir);
 
@@ -70,170 +72,133 @@ public class BotAI : NetworkBehaviour
         {
             stuckTimer = 0f;
             transform.position = targetPosition;
-            if (!isThinking) StartCoroutine(ThinkRoutine());
+
+            if (thinkingCoroutine != null) StopCoroutine(thinkingCoroutine);
+            thinkingCoroutine = StartCoroutine(ThinkRoutine());
         }
         else
         {
             stuckTimer += Time.deltaTime;
-            // GIẢM THỜI GIAN KẸT XUỐNG 0.15s ĐỂ BOT VÙNG VẪY NHANH HƠN[cite: 13]
-            if (stuckTimer > 0.15f)
+            if (stuckTimer > 0.4f)
             {
                 stuckTimer = 0f;
-                SnapToGrid(); // Ép về lại tâm lưới
-                if (!isThinking) StartCoroutine(ThinkRoutine());
+                SnapToGrid();
+                if (thinkingCoroutine != null) StopCoroutine(thinkingCoroutine);
+                thinkingCoroutine = StartCoroutine(ThinkRoutine());
             }
         }
     }
 
     IEnumerator ThinkRoutine()
     {
-        isThinking = true;
-        yield return new WaitForSeconds(Random.Range(0.1f, 0.2f)); // Suy nghĩ nhanh hơn
-        Vector2 currentPos = transform.position;
+        Vector2 currentPos = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y));
 
-        // 1. NÉ BOM (DÙNG BFS ĐỂ TÌM LỐI THOÁT)
         if (IsTileDangerous(currentPos))
         {
-            Vector2 safeTile = FindSafeSpotBFS(currentPos);
-            targetPosition = GetNextMoveTo(currentPos, safeTile);
+            Vector2 escape = FindEscapeRoute(currentPos);
+            targetPosition = (escape != currentPos) ? escape : FindRandomValidDirection(currentPos);
         }
-        // 2. NHẶT ĐỒ
         else if (FindNearbyTarget(currentPos, itemLayer, out Vector2 itemPos))
         {
             targetPosition = GetNextMoveTo(currentPos, itemPos);
         }
-        // 3. TÌM NGƯỜI CHƠI
         else if (FindNearbyTarget(currentPos, playerLayer, out Vector2 playerPos) && Vector2.Distance(currentPos, playerPos) > 1f)
         {
             targetPosition = GetNextMoveTo(currentPos, playerPos);
         }
-        // 4. ĐẶT BOM KHÔN NGOAN HƠN (Chỉ đặt khi có lối thoát)
         else if (IsNextToTarget(currentPos, softWallLayer) || IsNextToTarget(currentPos, playerLayer))
         {
-            if (Time.time - lastBombTime >= bombCooldown)
+            if (Time.time - lastBombTime >= bombCooldown && CanEscapeAfterPlanting(currentPos))
             {
-                // Giả lập đặt bom xem có đường lui không
-                if (CanEscapeAfterPlanting(currentPos))
-                {
-                    PlantBomb(currentPos);
-                    targetPosition = FindSafeSpotBFS(currentPos); // Đặt xong bỏ chạy ngay
-                }
-                else targetPosition = FindRandomValidDirection(currentPos);
+                PlantBomb(currentPos);
+                targetPosition = FindEscapeRoute(currentPos, currentPos);
             }
             else targetPosition = FindRandomValidDirection(currentPos);
         }
         else targetPosition = FindRandomValidDirection(currentPos);
 
-        isThinking = false;
+        yield return null;
     }
 
-    // --- CƠ CHẾ HỒI SINH ---
-    public void Die()
-    {
-        if (!IsServer || isDead) return;
-        StartCoroutine(RespawnRoutine());
-    }
-
-    IEnumerator RespawnRoutine()
-    {
-        isDead = true;
-        SetBotVisualsRpc(false); // Ẩn Bot đi
-        transform.position = new Vector2(-999, -999); // Ném ra khỏi map
-
-        yield return new WaitForSeconds(3f); // Đợi 3 giây hồi sinh
-
-        if (GameManager.Instance != null)
-        {
-            Vector2 safePos = GameManager.Instance.GetSafeSpawnPosition();
-            if (safePos != Vector2.zero)
-            {
-                transform.position = safePos;
-                SnapToGrid();
-            }
-        }
-
-        SetBotVisualsRpc(true); // Hiện Bot lại
-        isDead = false;
-    }
-
-    [Rpc(SendTo.Everyone)]
-    void SetBotVisualsRpc(bool state)
-    {
-        if (col != null) col.enabled = state;
-        foreach (var r in renderers) r.enabled = state;
-        if (nameText != null) nameText.enabled = state;
-    }
-
-    // --- THUẬT TOÁN TÌM ĐƯỜNG BFS CHỐNG NGU MỚI ---
-    Vector2 FindSafeSpotBFS(Vector2 startPos)
+    Vector2 FindEscapeRoute(Vector2 startPos, Vector2? simulatedBombPos = null)
     {
         Queue<Vector2> queue = new Queue<Vector2>();
-        HashSet<Vector2> visited = new HashSet<Vector2>();
+        Dictionary<Vector2, Vector2> cameFrom = new Dictionary<Vector2, Vector2>();
 
         queue.Enqueue(startPos);
-        visited.Add(startPos);
+        cameFrom[startPos] = startPos;
+        Vector2 safeSpot = startPos;
 
-        int maxLoops = 30; // Quét tối đa 30 ô để chống giật lag
-        int loopCount = 0;
-
-        while (queue.Count > 0 && loopCount < maxLoops)
+        while (queue.Count > 0)
         {
-            loopCount++;
             Vector2 curr = queue.Dequeue();
 
-            // Nếu ô này an toàn tuyệt đối -> Trả về kết quả ngay
-            if (!IsTileDangerous(curr)) return curr;
+            if (!IsTileDangerous(curr, simulatedBombPos))
+            {
+                safeSpot = curr;
+                break;
+            }
 
             foreach (Vector2 dir in directions)
             {
                 Vector2 next = curr + dir;
-                if (!visited.Contains(next) && !Physics2D.OverlapCircle(next, 0.4f, obstacleLayer))
+                if (!cameFrom.ContainsKey(next) && !Physics2D.OverlapCircle(next, 0.4f, obstacleLayer))
                 {
-                    visited.Add(next);
+                    cameFrom[next] = curr;
                     queue.Enqueue(next);
                 }
             }
         }
-        return startPos; // Bó tay, chịu chết
+
+        if (safeSpot == startPos) return startPos;
+
+        Vector2 step = safeSpot;
+        while (cameFrom[step] != startPos) step = cameFrom[step];
+        return step;
     }
 
     bool CanEscapeAfterPlanting(Vector2 pos)
     {
-        int escapeRoutes = 0;
-        foreach (Vector2 dir in directions)
-        {
-            Vector2 next = pos + dir;
-            // Chỉ cần có 1 ô bên cạnh trống (không có tường/bom/người chơi) là Bot sẽ dám đặt bom
-            if (!Physics2D.OverlapCircle(next, 0.4f, obstacleLayer) && !Physics2D.OverlapCircle(next, 0.4f, playerLayer))
-            {
-                escapeRoutes++;
-            }
-        }
-        return escapeRoutes > 0;
+        return FindEscapeRoute(pos, pos) != pos;
     }
 
-    // CÁC HÀM CẢM BIẾN CŨ GIỮ NGUYÊN (SnapToGrid, IsTileDangerous, FindNearbyTarget...)
-    void SnapToGrid() { targetPosition = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y)); }
-
-    bool IsTileDangerous(Vector2 pos)
+    bool IsTileDangerous(Vector2 pos, Vector2? simulatedBombPos = null)
     {
-        Bomb[] allBombs = FindObjectsByType<Bomb>(FindObjectsSortMode.None);
-        foreach (Bomb bomb in allBombs)
+        // 1. NÂNG CẤP: BOT ĐÃ CÓ THỂ NHÌN THẤY "TIA LỬA" (EXPLOSION) ĐANG CHÁY
+        Explosion[] allExplosions = FindObjectsByType<Explosion>(FindObjectsSortMode.None);
+        foreach (Explosion exp in allExplosions)
         {
-            Vector2 bombPos = new Vector2(Mathf.Round(bomb.transform.position.x), Mathf.Round(bomb.transform.position.y));
-            if (pos == bombPos) return true;
+            Vector2 expPos = new Vector2(Mathf.Round(exp.transform.position.x), Mathf.Round(exp.transform.position.y));
+            if (pos == expPos) return true;
+        }
+
+        // 2. CHECK BOM SẮP NỔ
+        Bomb[] allBombs = FindObjectsByType<Bomb>(FindObjectsSortMode.None);
+        List<Vector2> dangerCenters = new List<Vector2>();
+
+        foreach (Bomb bomb in allBombs) dangerCenters.Add(new Vector2(Mathf.Round(bomb.transform.position.x), Mathf.Round(bomb.transform.position.y)));
+        if (simulatedBombPos.HasValue) dangerCenters.Add(simulatedBombPos.Value);
+
+        foreach (Vector2 center in dangerCenters)
+        {
+            if (pos == center) return true;
+
             foreach (Vector2 dir in directions)
             {
-                for (int i = 1; i <= 3; i++) // Tầm nổ
+                for (int i = 1; i <= 6; i++)
                 {
-                    Vector2 checkPos = bombPos + (dir * i);
-                    if (Physics2D.OverlapCircle(checkPos, 0.4f, obstacleLayer) && !Physics2D.OverlapCircle(checkPos, 0.4f, softWallLayer)) break;
+                    Vector2 checkPos = center + (dir * i);
+
+                    // NÂNG CẤP: Phải check nguy hiểm TRƯỚC KHI break (để đề phòng đứng ngay trên ô có tường)
                     if (pos == checkPos) return true;
+                    if (Physics2D.OverlapCircle(checkPos, 0.4f, obstacleLayer)) break;
                 }
             }
         }
         return false;
     }
+
+    // --- CÁC HÀM PHỤ TRỢ (Giữ nguyên) ---
     bool FindNearbyTarget(Vector2 startPos, LayerMask targetLayer, out Vector2 targetPos)
     {
         Collider2D hit = Physics2D.OverlapCircle(startPos, 5f, targetLayer);
@@ -245,6 +210,7 @@ public class BotAI : NetworkBehaviour
         targetPos = startPos;
         return false;
     }
+
     bool IsNextToTarget(Vector2 pos, LayerMask layer)
     {
         foreach (Vector2 dir in directions)
@@ -254,6 +220,7 @@ public class BotAI : NetworkBehaviour
         }
         return false;
     }
+
     Vector2 GetNextMoveTo(Vector2 startPos, Vector2 targetPos)
     {
         Vector2 bestMove = startPos;
@@ -269,6 +236,7 @@ public class BotAI : NetworkBehaviour
         }
         return bestMove;
     }
+
     Vector2 FindRandomValidDirection(Vector2 pos)
     {
         List<Vector2> validSpots = new List<Vector2>();
@@ -280,6 +248,9 @@ public class BotAI : NetworkBehaviour
         if (validSpots.Count > 0) return validSpots[Random.Range(0, validSpots.Count)];
         return pos;
     }
+
+    void SnapToGrid() { targetPosition = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y)); }
+
     void PlantBomb(Vector2 pos)
     {
         if (Physics2D.OverlapCircle(pos, 0.1f, obstacleLayer)) return;
@@ -288,6 +259,7 @@ public class BotAI : NetworkBehaviour
         bombObj.GetComponent<Bomb>().Initialize(NetworkObjectId, explosionRange);
         lastBombTime = Time.time;
     }
+
     void UpdateAnimations(Vector2 moveDir)
     {
         if (animator == null) return;
@@ -300,38 +272,52 @@ public class BotAI : NetworkBehaviour
         else animator.SetBool("IsMoving", false);
     }
 
-    // --- HÀM HẤP THỤ ITEM SỨC MẠNH ---
+    public void Die()
+    {
+        if (!IsServer || isDead) return;
+        if (thinkingCoroutine != null) StopCoroutine(thinkingCoroutine);
+        StartCoroutine(RespawnRoutine());
+    }
+
+    IEnumerator RespawnRoutine()
+    {
+        isDead = true;
+        SetBotVisualsRpc(false);
+        transform.position = new Vector2(-999, -999);
+        yield return new WaitForSeconds(3f);
+        if (GameManager.Instance != null)
+        {
+            Vector2 safePos = GameManager.Instance.GetSafeSpawnPosition();
+            if (safePos != Vector2.zero)
+            {
+                transform.position = safePos;
+                SnapToGrid();
+            }
+        }
+        SetBotVisualsRpc(true);
+        isDead = false;
+    }
+
+    [Rpc(SendTo.Everyone)]
+    void SetBotVisualsRpc(bool state)
+    {
+        if (col != null) col.enabled = state;
+        foreach (var r in renderers) r.enabled = state;
+        if (nameText != null) nameText.enabled = state;
+    }
+
     public void UpgradeStat(int statType)
     {
         if (!IsServer) return;
-
         switch (statType)
         {
-            case 0: // Speed (Tăng tốc độ chạy)
-                moveSpeed += 0.5f;
-                if (moveSpeed > 7f) moveSpeed = 7f; // Giới hạn tốc độ để tránh Bot chạy xuyên tường
-                break;
-
-            case 1: // Bomb Up (Giảm thời gian hồi bom, giúp Bot đặt bom nhanh hơn)
-                bombCooldown -= 0.5f;
-                if (bombCooldown < 0.5f) bombCooldown = 0.5f; // Giới hạn tối thiểu 0.5s để chống lag
-                break;
-
-            case 2: // Fire (Tăng tầm nổ của tia lửa)
-                explosionRange += 1;
-                if (explosionRange > 6) explosionRange = 6; // Giới hạn max 6 ô
-                break;
-
-            case 3: // RARE (Buff tất cả chỉ số cùng lúc)
-                moveSpeed += 0.5f;
-                if (moveSpeed > 7f) moveSpeed = 7f;
-
-                bombCooldown -= 0.5f;
-                if (bombCooldown < 0.5f) bombCooldown = 0.5f;
-
-                explosionRange += 1;
-                if (explosionRange > 6) explosionRange = 6;
-                break;
+            case 0: moveSpeed += 0.5f; if (moveSpeed > 7f) moveSpeed = 7f; break;
+            case 1: bombCooldown -= 0.5f; if (bombCooldown < 0.5f) bombCooldown = 0.5f; break;
+            case 2: explosionRange += 1; if (explosionRange > 6) explosionRange = 6; break;
+            case 3:
+                moveSpeed += 0.5f; if (moveSpeed > 7f) moveSpeed = 7f;
+                bombCooldown -= 0.5f; if (bombCooldown < 0.5f) bombCooldown = 0.5f;
+                explosionRange += 1; if (explosionRange > 6) explosionRange = 6; break;
         }
     }
 }

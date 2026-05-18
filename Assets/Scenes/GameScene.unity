@@ -348,7 +348,7 @@ Camera:
   far clip plane: 1000
   field of view: 34
   orthographic: 1
-  orthographic size: 12
+  orthographic size: 8
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
@@ -956,7 +956,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0cd44c1031e13a943bb63640046fad76, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.CanvasScaler
-  m_UiScaleMode: 0
+  m_UiScaleMode: 1
   m_ReferencePixelsPerUnit: 100
   m_ScaleFactor: 1
   m_ReferenceResolution: {x: 800, y: 600}
@@ -1497,7 +1497,7 @@ MonoBehaviour:
   spawnInterval: 0.1
   suddenDeathTime: 100
   gameDuration: 120
-  finalArenaSize: 7
+  finalArenaSize: 15
   selectedMapIndex: 0
   gameActive:
     m_InternalValue: 0
@@ -1536,7 +1536,7 @@ MonoBehaviour:
   softWallPrefab: {fileID: 6537756679960122870, guid: 70d3233714c97594d9f06b9f3864e549, type: 3}
   mapDatabase:
   - {fileID: 11400000, guid: 84d61d2a02d52b5409e105c540b27ae7, type: 2}
-  - {fileID: 11400000, guid: a92ab89cb92585a4f8365af24582181e, type: 2}
+  - {fileID: 11400000, guid: e8154d20029da5d45a5f2f8b95952d49, type: 2}
 --- !u!114 &1674291053
 MonoBehaviour:
   m_ObjectHideFlags: 0

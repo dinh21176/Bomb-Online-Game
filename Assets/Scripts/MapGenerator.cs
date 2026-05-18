@@ -92,4 +92,11 @@ public class MapGenerator : NetworkBehaviour
         }
         spawnedWalls.Clear();
     }
+    public void RegisterWall(GameObject wall)
+    {
+        if (wall != null && !spawnedWalls.Contains(wall))
+        {
+            spawnedWalls.Add(wall);
+        }
+    }
 }

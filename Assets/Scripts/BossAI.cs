@@ -11,7 +11,7 @@ public class BossAI : NetworkBehaviour
     public int maxHP = 1000;
 
     [Header("Prefabs & UI")]
-    public Slider hpSlider;
+    public Image hpSlider;
     public GameObject warningPrefab;
     public GameObject explosionPrefab;
     public GameObject coinPrefab;
@@ -54,7 +54,7 @@ public class BossAI : NetworkBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
 
         // Đồng bộ thanh máu cho mọi Client mỗi khi bị đánh
-        currentHP.OnValueChanged += (oldVal, newVal) => { if (hpSlider != null) hpSlider.value = (float)newVal / maxHP; };
+        currentHP.OnValueChanged += (oldVal, newVal) => { if (hpSlider != null) hpSlider.fillAmount = (float)newVal / maxHP; };
 
         if (IsServer)
         {

@@ -1212,7 +1212,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -19, y: -3}
   m_SizeDelta: {x: 439.47095, y: 51.909973}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &1512920994
@@ -1308,7 +1308,7 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: -50.96045, y: 0, z: -63.70117, w: -60.51538}
+  m_margin: {x: -14.080582, y: 0, z: -142.27231, w: -34.85984}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
@@ -1485,6 +1485,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   ShowTopMostFoldoutHeaderGroup: 1
   gameInfoText: {fileID: 1512920995}
+  endGamePanel: {fileID: 0}
   coinPrefab: {fileID: 3792505855476812221, guid: f82f6dd5868ae384b9091e506b7969d5, type: 3}
   wallPrefab: {fileID: 3702639541171450815, guid: c13d1d1ce53952047936c9086e9aa46d, type: 3}
   warningPrefab: {fileID: 1433167225023967263, guid: 42b2629090c80d54b9905fb236312647, type: 3}
@@ -1500,6 +1501,7 @@ MonoBehaviour:
   suddenDeathTime: 100
   gameDuration: 120
   finalArenaSize: 15
+  mainMenuSceneName: MainMenu
   currentMode:
     m_InternalValue: 0
   currentStage:

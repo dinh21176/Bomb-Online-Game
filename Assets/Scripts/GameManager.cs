@@ -24,6 +24,7 @@ public class GameManager : NetworkBehaviour
 {
     [Header("UI References")]
     [SerializeField] TextMeshProUGUI gameInfoText;
+    [SerializeField] EndGamePanelUI endGamePanel;
 
     [Header("Prefabs")]
     [SerializeField] GameObject coinPrefab;
@@ -44,6 +45,9 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private float suddenDeathTime = 40f;
     [SerializeField] private float gameDuration = 120f;
     [SerializeField] int finalArenaSize = 15;
+
+    [Header("Scene Names")]
+    [SerializeField] private string mainMenuSceneName = "MainMenu";
 
     [Header("PvE Core Systems")]
     public NetworkVariable<GameMode> currentMode = new NetworkVariable<GameMode>(GameMode.PvP);
@@ -148,6 +152,7 @@ public class GameManager : NetworkBehaviour
     {
         if (!IsServer) return;
         Debug.Log("Game Started");
+        HideEndGamePanelRpc();
         gameTime.Value = gameDuration;
         suddenDeathStarted = false;
         gameActive.Value = true;
@@ -438,15 +443,16 @@ public class GameManager : NetworkBehaviour
         Coin[] coins = FindObjectsByType<Coin>(FindObjectsSortMode.None);
         foreach (Coin coin in coins) { coin.DesTroyCoinRpc(); }
 
-        UpdateWinnerRpc();
+        string winnerText = ScoreBoardManager.Instance.GetWinnerName();
+        UpdateWinnerRpc(winnerText);
+        ShowEndGamePanelRpc("MATCH COMPLETE", winnerText, true, "MAIN MENU");
 
-        MapGenerator.Instance.ClearCurrentMap();
+        if (MapGenerator.Instance != null) MapGenerator.Instance.ClearCurrentMap();
     }
 
     [Rpc(SendTo.ClientsAndHost)]
-    void UpdateWinnerRpc()
+    void UpdateWinnerRpc(string winnerText)
     {
-        string winnerText = ScoreBoardManager.Instance.GetWinnerName();
         gameInfoText.text = winnerText;
     }
 
@@ -546,6 +552,8 @@ public class GameManager : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        HideEndGamePanelRpc();
+
         currentStage.Value = stage;
         gameActive.Value = true;
         suddenDeathStarted = false; // Tắt vòng boSudden Death ở chế độ PvE
@@ -610,25 +618,27 @@ public class GameManager : NetworkBehaviour
     {
         if (currentStage.Value == PvEStage.Stage1)
         {
-            StartCoroutine(StageTransitionRoutine(PvEStage.Stage2, "STAGE 1 CLEAR! NEXT WAVE COMING..."));
+            StartCoroutine(StageTransitionRoutine(PvEStage.Stage2, "STAGE 1 CLEAR!", "Next wave is coming..."));
         }
         else if (currentStage.Value == PvEStage.Stage2)
         {
-            StartCoroutine(StageTransitionRoutine(PvEStage.Stage3_Boss, "STAGE 2 CLEAR! WARNING: BOSS APPROACHING!"));
+            StartCoroutine(StageTransitionRoutine(PvEStage.Stage3_Boss, "STAGE 2 CLEAR!", "Warning: boss approaching!"));
         }
         else if (currentStage.Value == PvEStage.Stage3_Boss)
         {
             currentStage.Value = PvEStage.Victory;
             gameActive.Value = false;
             UpdateGameInfoTextRpc("VICTORY! YOU DEFEATED THE BOSS!");
+            ShowEndGamePanelRpc("VICTORY!", "You defeated the boss!", true, "MAIN MENU");
         }
     }
 
-    IEnumerator StageTransitionRoutine(PvEStage nextStage, string message)
+    IEnumerator StageTransitionRoutine(PvEStage nextStage, string title, string message)
     {
         // 1. Tạm dừng game và báo hiệu
         gameActive.Value = false;
-        UpdateGameInfoTextRpc(message);
+        UpdateGameInfoTextRpc($"{title} {message}");
+        ShowEndGamePanelRpc(title, message, false, "MAIN MENU");
 
         // 2. Dọn dẹp sạch sẽ map cũ
         if (MapGenerator.Instance != null) MapGenerator.Instance.ClearCurrentMap();
@@ -638,6 +648,7 @@ public class GameManager : NetworkBehaviour
         yield return new WaitForSeconds(3.5f);
 
         // 4. Bắt đầu ải tiếp theo
+        HideEndGamePanelRpc();
         StartPvEStage(nextStage);
     }
 
@@ -645,6 +656,18 @@ public class GameManager : NetworkBehaviour
     void UpdateGameInfoTextRpc(string msg)
     {
         if (gameInfoText != null) gameInfoText.text = msg;
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void ShowEndGamePanelRpc(string title, string message, bool showMainMenuButton, string buttonLabel)
+    {
+        GetOrCreateEndGamePanel().ShowResult(title, message, showMainMenuButton, buttonLabel);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    private void HideEndGamePanelRpc()
+    {
+        GetOrCreateEndGamePanel().Hide();
     }
 
     // Xử lý khi người chơi thua cuộc
@@ -658,7 +681,8 @@ public class GameManager : NetworkBehaviour
 
         // Gọi RPC hiển thị Panel Bỏ phiếu Chơi lại / Rời phòng lên màn hình UI của mọi người
         voteReplayCount = 0;
-        OpenReplayVotePanelRpc();
+        UpdateGameInfoTextRpc("DEFEAT!");
+        ShowEndGamePanelRpc("DEFEAT", reason, true, "MAIN MENU");
     }
 
     // Hàm dùng để quản lý thực thể quái (Sẽ gọi từ script Quái ở Bước 2)
@@ -800,8 +824,23 @@ public class GameManager : NetworkBehaviour
             AudioManager.Instance.PlayBGM(AudioManager.Instance.mainMenuBGM);
         }
 
-        // Tải lại Scene Menu (Hãy sửa "MainMenu" thành đúng tên Scene của bạn nếu khác)
-        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
+        UnityEngine.SceneManagement.SceneManager.LoadScene(mainMenuSceneName);
+    }
+
+    private EndGamePanelUI GetOrCreateEndGamePanel()
+    {
+        if (endGamePanel != null)
+            return endGamePanel;
+
+        endGamePanel = FindFirstObjectByType<EndGamePanelUI>(FindObjectsInactive.Include);
+
+        if (endGamePanel == null)
+        {
+            GameObject panelObject = new GameObject("EndGamePanelUI");
+            endGamePanel = panelObject.AddComponent<EndGamePanelUI>();
+        }
+
+        return endGamePanel;
     }
 
 }

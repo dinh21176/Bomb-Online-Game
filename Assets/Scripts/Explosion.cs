@@ -4,11 +4,18 @@ using UnityEngine;
 public class Explosion : NetworkBehaviour
 {
     public ulong killerId;
+
+    private static float lastSoundTime = 0f;
     public override void OnNetworkSpawn()
     {
         if (AudioManager.Instance != null)
         {
-            AudioManager.Instance.PlaySFX(AudioManager.Instance.explodeSFX);
+            // CHỈ CHO PHÉP phát tiếng nổ nếu cách tiếng trước đó ít nhất 0.1 giây
+            if (Time.time - lastSoundTime > 0.1f)
+            {
+                AudioManager.Instance.PlaySFX(AudioManager.Instance.explodeSFX);
+                lastSoundTime = Time.time;
+            }
         }
 
         if (IsServer)

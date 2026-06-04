@@ -38,6 +38,10 @@ public class PlayerMovement : NetworkBehaviour
     private int savedBombCount;
     private int savedExplosionRange;
 
+    // Immnunity
+    private bool isInvincible = false;
+
+
     // Constants
     const int ABSOLUTE_MAX_BOMBS = 6;
     const int ABSOLUTE_MAX_RANGE = 6;
@@ -70,8 +74,6 @@ public class PlayerMovement : NetworkBehaviour
             {
                 Vector2 pos = GameManager.Instance.GetCornerSpawnPosition(spawnIndex);
 
-                // Thay vì dùng lệnh Teleport trực tiếp gây lỗi, ta gọi ForceTeleport.
-                // Hàm này sẽ dùng RPC (TeleportPlayerRpc) để ra lệnh cho Client tự dịch chuyển một cách an toàn.
                 ForceTeleport(pos);
             }
         }
@@ -87,13 +89,10 @@ public class PlayerMovement : NetworkBehaviour
 
         if (IsOwner)
         {
-            // Thay đổi 1: Dùng GetAxisRaw thay vì GetAxis để lấy số chẵn (-1, 0, 1). 
-            // Giúp nhân vật di chuyển dứt khoát, không bị trượt (slide).
             float x = Input.GetAxisRaw("Horizontal");
             float y = Input.GetAxisRaw("Vertical");
 
-            // Thay đổi 2: NGĂN CHẶN ĐI CHÉO
-            // Nếu người chơi đang bấm phím đi ngang (Trái/Phải), ta khóa luôn trục dọc.
+           
             if (x != 0)
             {
                 y = 0;
@@ -223,9 +222,8 @@ public class PlayerMovement : NetworkBehaviour
 
     IEnumerator RarePowerUpRoutine(float duration)
     {
-        // 1. If we are already in Rare Mode, just extend the timer? 
-        // For simplicity, we'll just ignore overlapping pickups or reset the timer in a complex version.
-        // Here, we check if it's already active to avoid double-saving stats.
+
+        // check if it's already active to avoid double-saving stats.
         if (isRareModeActive) yield break;
 
         isRareModeActive = true;
@@ -272,7 +270,7 @@ public class PlayerMovement : NetworkBehaviour
 
     public void Die(ulong killerId)
     {
-        if (!IsServer || isDead.Value) return;
+        if (!IsServer || isDead.Value || isInvincible) return;
 
         Debug.Log($"Player {OwnerClientId} was killed by {killerId}!");
 
@@ -280,7 +278,7 @@ public class PlayerMovement : NetworkBehaviour
         ScoreBoardManager.Instance.IncreasePlayerScoreRpc(OwnerClientId, -15);
 
         // REWARD: Killer gains 15 points
-        // Check to ensure they didn't kill themselves (Suicide shouldn't reward points)
+        // Check to ensure they didn't kill themselves 
         if (killerId != OwnerClientId)
         {
             ScoreBoardManager.Instance.IncreasePlayerScoreRpc(killerId, 15);
@@ -323,6 +321,15 @@ public class PlayerMovement : NetworkBehaviour
 
         isDead.Value = false;
         TeleportPlayerRpc(respawnPos);
+
+        // --- CƠ CHẾ BẤT TỬ 2 GIÂY ---
+        isInvincible = true;
+        SetInvincibleVisualsRpc(true); // Làm mờ nhân vật
+
+        yield return new WaitForSeconds(2f);
+
+        isInvincible = false;
+        SetInvincibleVisualsRpc(false); // Sáng lại bình thường
     }
 
     private void OnDeathStateChanged(bool prev, bool current)
@@ -359,4 +366,33 @@ public class PlayerMovement : NetworkBehaviour
         TeleportPlayerRpc(position);
     }
 
+    [Rpc(SendTo.Everyone)]
+    private void SetInvincibleVisualsRpc(bool isInvincibleState)
+    {
+        if (visuals != null)
+        {
+            Color c = visuals.color;
+            c.a = isInvincibleState ? 0.4f : 1f; // Độ mờ 40% khi bất tử
+            visuals.color = c;
+        }
+    }
+
+    public void ResetStats()
+    {
+        if (!IsServer) return;
+
+        maxBombs.Value = 1;
+        explosionRange.Value = 1;
+        speedLevel.Value = 0;
+        currentActiveBombs = 0;
+
+        savedBombCount = 1;
+        savedExplosionRange = 1;
+
+        if (isRareModeActive)
+        {
+            isRareModeActive = false;
+            SetRareModeClientRpc(false);
+        }
+    }
 }

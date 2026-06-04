@@ -1489,6 +1489,8 @@ MonoBehaviour:
   wallPrefab: {fileID: 3702639541171450815, guid: c13d1d1ce53952047936c9086e9aa46d, type: 3}
   warningPrefab: {fileID: 1433167225023967263, guid: 42b2629090c80d54b9905fb236312647, type: 3}
   botPrefab: {fileID: 6588745524252336695, guid: b56017f1280e9034a9a838eba25b4506, type: 3}
+  basicMonsterPrefab: {fileID: 6190367316631376710, guid: 7e2935243df72ab4fa1609abb05484b3, type: 3}
+  bossPrefab: {fileID: 5062626708761731625, guid: 05bc49a2259482c4b885552b65b1c60d, type: 3}
   spawnAreaMin: {x: -20, y: -11}
   spawnAreaMax: {x: 20, y: 11}
   obstructionLayer:
@@ -1498,6 +1500,10 @@ MonoBehaviour:
   suddenDeathTime: 100
   gameDuration: 120
   finalArenaSize: 15
+  currentMode:
+    m_InternalValue: 0
+  currentStage:
+    m_InternalValue: 0
   selectedMapIndex: 0
   gameActive:
     m_InternalValue: 0
@@ -1535,8 +1541,9 @@ MonoBehaviour:
   hardWallPrefab: {fileID: 3702639541171450815, guid: c13d1d1ce53952047936c9086e9aa46d, type: 3}
   softWallPrefab: {fileID: 6537756679960122870, guid: 70d3233714c97594d9f06b9f3864e549, type: 3}
   mapDatabase:
-  - {fileID: 11400000, guid: 84d61d2a02d52b5409e105c540b27ae7, type: 2}
-  - {fileID: 11400000, guid: e8154d20029da5d45a5f2f8b95952d49, type: 2}
+  - {fileID: 11400000, guid: ce842b331d7f5c9469157ad56b8fb3c0, type: 2}
+  - {fileID: 11400000, guid: b4534d0e94130eb4085a859f0763702f, type: 2}
+  - {fileID: 11400000, guid: 8f3adbd331df0974ea060c6c7bb8b2dc, type: 2}
 --- !u!114 &1674291053
 MonoBehaviour:
   m_ObjectHideFlags: 0

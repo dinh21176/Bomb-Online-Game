@@ -11,14 +11,20 @@ public class ClickyButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandle
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        _img.sprite = _pressed;
-        _source.PlayOneShot(_compressClip);
+        if (_img != null && _pressed != null)
+            _img.sprite = _pressed;
+
+        if (_source != null && _compressClip != null)
+            _source.PlayOneShot(_compressClip);
     }
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        _img .sprite = _default;
-        _source.PlayOneShot(_uncompressClip);
+        if (_img != null && _default != null)
+            _img.sprite = _default;
+
+        if (_source != null && _uncompressClip != null)
+            _source.PlayOneShot(_uncompressClip);
     }
 
     public void IWasClicked()

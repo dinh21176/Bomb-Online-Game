@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using Unity.Netcode;
 using TMPro;
@@ -6,10 +6,13 @@ using UnityEngine.SceneManagement;
 
 public class MainMenuManager : MonoBehaviour
 {
+    public static GameMode pendingGameMode = GameMode.PvP;
+
     [Header("UI References")]
     [SerializeField] private TMP_InputField nameInputField;
-    [SerializeField] private Button createButton; 
-    [SerializeField] private Button joinButton;  
+    [SerializeField] private Button hostPvPButton;
+    [SerializeField] private Button hostPvEButton;
+    [SerializeField] private Button joinButton;
 
     [Header("Scene Name")]
     [SerializeField] private string gameSceneName = "GameScene";
@@ -19,11 +22,24 @@ public class MainMenuManager : MonoBehaviour
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlayBGM(AudioManager.Instance.mainMenuBGM);
 
-        // 1. Setup Listeners
-        createButton.onClick.AddListener(OnCreateClicked);
-        joinButton.onClick.AddListener(OnJoinClicked);
+        // Supports the new 3-button menu, while old scenes with one Host button still work.
+        if (hostPvPButton == null)
+            hostPvPButton = GameObject.Find("Host PvP")?.GetComponent<Button>()
+                ?? GameObject.Find("HostPvPButton")?.GetComponent<Button>()
+                ?? GameObject.Find("Create Room")?.GetComponent<Button>();
 
-        // 2. Load Saved Name
+        if (hostPvEButton == null)
+            hostPvEButton = GameObject.Find("Host PvE")?.GetComponent<Button>()
+                ?? GameObject.Find("HostPvEButton")?.GetComponent<Button>();
+
+        if (joinButton == null)
+            joinButton = GameObject.Find("Join")?.GetComponent<Button>()
+                ?? GameObject.Find("Join Room")?.GetComponent<Button>();
+
+        if (hostPvPButton != null) hostPvPButton.onClick.AddListener(() => OnHostClicked(GameMode.PvP));
+        if (hostPvEButton != null) hostPvEButton.onClick.AddListener(() => OnHostClicked(GameMode.PvE));
+        if (joinButton != null) joinButton.onClick.AddListener(OnJoinClicked);
+
         if (nameInputField != null)
             nameInputField.text = PlayerPrefs.GetString("PlayerName", "Adventurer");
     }
@@ -38,17 +54,18 @@ public class MainMenuManager : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-    private void OnCreateClicked() // HOST LOGIC
+    // HOST LOGIC (Gộp chung cho cả PvP và PvE)
+    private void OnHostClicked(GameMode selectedMode)
     {
         SavePlayerName();
 
-        // Start Host
-        NetworkManager.Singleton.StartHost();
+        // Lưu chế độ chơi vào biến static
+        pendingGameMode = selectedMode;
 
-        // Load Scene (Only Host does this!)
-        // The Client will automatically follow because of "Enable Scene Management"
+        NetworkManager.Singleton.StartHost();
         NetworkManager.Singleton.SceneManager.LoadScene(gameSceneName, LoadSceneMode.Single);
     }
+
 
     private void OnJoinClicked() // CLIENT LOGIC
     {

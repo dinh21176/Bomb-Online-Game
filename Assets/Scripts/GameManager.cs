@@ -4,6 +4,22 @@ using TMPro;
 using Unity.Netcode;
 using UnityEngine;
 
+public enum GameMode
+{
+    PvP,
+    PvE
+}
+
+public enum PvEStage
+{
+    NotStarted,
+    Stage1,       // Ải 1: Quái nhỏ dễ
+    Stage2,       // Ải 2: Quái nhỏ đông/khó hơn
+    Stage3_Boss,  // Ải 3: Trận chiến với Boss
+    Victory,      // Thắng toàn bộ chế độ PvE
+    Defeat        // Thua cuộc do hết thời gian hoặc chết hết
+}
+
 public class GameManager : NetworkBehaviour
 {
     [Header("UI References")]
@@ -14,6 +30,8 @@ public class GameManager : NetworkBehaviour
     [SerializeField] GameObject wallPrefab;
     [SerializeField] GameObject warningPrefab; // Optional visual
     [SerializeField] GameObject botPrefab;
+    [SerializeField] GameObject basicMonsterPrefab;
+    [SerializeField] GameObject bossPrefab;
 
     [Header("Map Settings")]
     public Vector2 spawnAreaMin;
@@ -26,6 +44,15 @@ public class GameManager : NetworkBehaviour
     [SerializeField] private float suddenDeathTime = 40f;
     [SerializeField] private float gameDuration = 120f;
     [SerializeField] int finalArenaSize = 15;
+
+    [Header("PvE Core Systems")]
+    public NetworkVariable<GameMode> currentMode = new NetworkVariable<GameMode>(GameMode.PvP);
+    public NetworkVariable<PvEStage> currentStage = new NetworkVariable<PvEStage>(PvEStage.NotStarted);
+
+    // Quản lý danh sách quái để tính điều kiện qua màn
+    private List<GameObject> spawnedMonsters = new List<GameObject>();
+    private int voteReplayCount = 0;
+    private int totalConnectedPlayers = 0;
 
     [HideInInspector] public int selectedMapIndex = 0; 
     public static GameManager Instance { get; private set; }
@@ -71,23 +98,49 @@ public class GameManager : NetworkBehaviour
 
     private void Update()
     {
-        if (IsHost && Input.GetKeyDown(KeyCode.Return) && !gameActive.Value)
+        if (IsServer && !gameActive.Value)
         {
-            StartGame();
+            // Hợp nhất: Bấm Enter sẽ tự động chạy đúng chế độ mà Host đã chọn ở Menu
+            if (Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter))
+            {
+                currentMode.Value = MainMenuManager.pendingGameMode;
+
+                if (currentMode.Value == GameMode.PvP)
+                {
+                    StartGame();
+                }
+                else if (currentMode.Value == GameMode.PvE)
+                {
+                    StartPvEStage(PvEStage.Stage1);
+                }
+                return;
+            }
         }
 
         if (!IsServer || !gameActive.Value) return;
 
-        gameTime.Value -= Time.deltaTime;
-
-        if (gameTime.Value <= suddenDeathTime && !suddenDeathStarted)
+        // Logic đếm ngược thời gian chung
+        if (gameTime.Value > 0)
         {
-            StartCoroutine(SuddenDeathRoutine());
+            gameTime.Value -= Time.deltaTime;
+        }
+        else
+        {
+            // HẾT THỜI GIAN TRẬN ĐẤU
+            if (currentMode.Value == GameMode.PvP)
+            {
+                EndGame(); // Logic kết thúc PvP cũ của bạn
+            }
+            else if (currentMode.Value == GameMode.PvE)
+            {
+                TriggerPvEDefeat("Hết thời gian!");
+            }
         }
 
-        if (gameTime.Value <= 0)
+        // Nếu ở chế độ PvE: Liên tục kiểm tra điều kiện qua màn sạch quái
+        if (currentMode.Value == GameMode.PvE && gameActive.Value)
         {
-            EndGame();
+            CheckPvEStageClearCondition();
         }
     }
 
@@ -102,11 +155,7 @@ public class GameManager : NetworkBehaviour
         if (MapGenerator.Instance != null)
         {
             int totalMaps = MapGenerator.Instance.mapDatabase.Length;
-            if (totalMaps > 0)
-            {
-                selectedMapIndex = Random.Range(0, totalMaps);
-            }
-
+            if (totalMaps > 0) selectedMapIndex = Random.Range(0, totalMaps);
             MapGenerator.Instance.GenerateMap(selectedMapIndex);
             AutoFitCamera();
         }
@@ -114,34 +163,39 @@ public class GameManager : NetworkBehaviour
         int maxPlayers = 4;
         int currentPlayerCount = NetworkManager.Singleton.ConnectedClientsList.Count;
 
-        // 1. DỊCH CHUYỂN NGƯỜI CHƠI THẬT
-        int index = 0;
+        // Mảng theo dõi góc nào đã có người đứng
+        bool[] occupiedCorners = new bool[4];
+
+        // 1. DỊCH CHUYỂN NGƯỜI CHƠI THẬT (Dựa trên ID Mạng để không bao giờ bị trùng)
         foreach (var client in NetworkManager.Singleton.ConnectedClientsList)
         {
-            if (client.PlayerObject != null)
+            if (client.PlayerObject != null && client.PlayerObject.TryGetComponent(out PlayerMovement pm))
             {
-                var playerMovement = client.PlayerObject.GetComponent<PlayerMovement>();
-                if (playerMovement != null)
-                {
-                    Vector2 startPos = GetCornerSpawnPosition(index);
-                    playerMovement.ForceTeleport(startPos);
-                    index++;
-                }
+                int cornerIndex = (int)(client.ClientId % 4);
+                Vector2 startPos = GetCornerSpawnPosition(cornerIndex);
+                pm.ForceTeleport(startPos);
+                occupiedCorners[cornerIndex] = true; // Đánh dấu góc này đã có chủ
             }
         }
 
-        // 2. SINH RA BOT ĐỂ LẤP ĐẦY SỐ LƯỢNG (4 - số người thật)
+        // 2. SINH RA BOT ĐỂ LẤP ĐẦY (Chỉ tìm các góc chưa có người)
         int botsToSpawn = maxPlayers - currentPlayerCount;
         for (int i = 0; i < botsToSpawn; i++)
         {
-            // Tính vị trí góc còn dư cho Bot
-            Vector2 botPos = GetCornerSpawnPosition(index);
-
-            // Tạo Bot trên Server
+            int botCorner = 0;
+            for (int c = 0; c < 4; c++)
+            {
+                if (!occupiedCorners[c])
+                {
+                    botCorner = c;
+                    occupiedCorners[c] = true;
+                    break;
+                }
+            }
+            Vector2 botPos = GetCornerSpawnPosition(botCorner);
             GameObject bot = Instantiate(botPrefab, botPos, Quaternion.identity);
             bot.GetComponent<NetworkObject>().Spawn();
-
-            index++;
+            
         }
     }
 
@@ -178,6 +232,26 @@ public class GameManager : NetworkBehaviour
     {
         if (!gameActive.Value) return;
 
+        // Rarity Logic
+        int type = 0;
+        float r = Random.Range(0f, 100f);
+
+        if (r > 95f) type = 6;       // Rare
+        else if (r > 90f) type = 1;  // Diamond
+        else if (r > 75f) type = 2;  // Trap
+        else if (r > 65f) type = 5;  // Fire
+        else if (r > 55f) type = 4;  // Bomb Up
+        else if (r > 45f) type = 3;  // Speed
+
+        if (currentMode.Value == GameMode.PvE)
+        {
+           
+            if (type == 0 || type == 1 || type == 2)
+            {
+                return; 
+            }
+        }
+
         Vector2 spawnPos = Vector2.zero;
         bool validPositionFound = false;
 
@@ -213,9 +287,6 @@ public class GameManager : NetworkBehaviour
             netObj.Spawn();
 
             // Rarity Logic
-            int type = 0;
-            float r = Random.Range(0f, 100f);
-
             if (r > 95f) type = 6;       // Rare
             else if (r > 90f) type = 1;  // Diamond
             else if (r > 75f) type = 2;  // Trap
@@ -460,6 +531,277 @@ public class GameManager : NetworkBehaviour
         float centerX = (spawnAreaMax.x + spawnAreaMin.x) / 2f;
         float centerY = (spawnAreaMax.y + spawnAreaMin.y) / 2f;
         cam.transform.position = new Vector3(centerX, centerY, -10f); // -10f là z offset mặc định của 2D
+    }
+
+    // Hàm khởi tạo chế độ chơi PvE từ màn hình chọn (Gọi bởi Host)
+    public void SetupPvEModeSelection(GameMode selectedMode)
+    {
+        if (!IsServer) return;
+        currentMode.Value = selectedMode;
+        Debug.Log($"Chế độ chơi được set thành: {currentMode.Value}");
+    }
+
+    // Hàm bắt đầu một Ải PvE cụ thể
+    public void StartPvEStage(PvEStage stage)
+    {
+        if (!IsServer) return;
+
+        currentStage.Value = stage;
+        gameActive.Value = true;
+        suddenDeathStarted = false; // Tắt vòng boSudden Death ở chế độ PvE
+
+        // Thiết lập thời gian cho từng ải (Ví dụ: ải nhỏ 90s, Boss 180s)
+        gameTime.Value = (stage == PvEStage.Stage3_Boss) ? 180f : 90f;
+
+        // 1. Dọn dẹp bản đồ cũ
+        if (MapGenerator.Instance != null) MapGenerator.Instance.ClearCurrentMap();
+        ClearExistingMonsters();
+
+        foreach (Coin item in FindObjectsByType<Coin>(FindObjectsSortMode.None)) { if (item.IsSpawned) item.GetComponent<NetworkObject>().Despawn(); }
+        foreach (Bomb bomb in FindObjectsByType<Bomb>(FindObjectsSortMode.None)) { if (bomb.IsSpawned) bomb.GetComponent<NetworkObject>().Despawn(); }
+        foreach (Explosion exp in FindObjectsByType<Explosion>(FindObjectsSortMode.None)) { if (exp.IsSpawned) exp.GetComponent<NetworkObject>().Despawn(); }
+
+        // 2. Sinh bản đồ tương ứng cho từng ải
+        int mapIndex = 0;
+        if (stage == PvEStage.Stage1) mapIndex = 0; // Kéo map 1 vào database
+        else if (stage == PvEStage.Stage2) mapIndex = 1; // Map 2
+        else if (stage == PvEStage.Stage3_Boss) mapIndex = 2; // Map Boss
+
+        if (MapGenerator.Instance != null)
+        {
+            MapGenerator.Instance.GenerateMap(mapIndex);
+            AutoFitCamera(); 
+        }
+
+        // 3. Dịch chuyển toàn bộ người chơi về vị trí an toàn (Góc map)
+        PlayerMovement[] allPlayers = FindObjectsByType<PlayerMovement>(FindObjectsSortMode.None);
+        totalConnectedPlayers = allPlayers.Length;
+
+        foreach (PlayerMovement player in allPlayers)
+        {
+            // Ép buộc dùng ID mạng để chia góc, giải quyết 100% việc đè nhau khi qua Ải
+            player.ResetStats();
+            int spawnIndex = (int)(player.OwnerClientId % 4);
+            Vector2 spawnPos = GetCornerSpawnPosition(spawnIndex);
+            player.ForceTeleport(spawnPos);
+        }
+
+        // 4. KÍCH HOẠT HÀM SINH QUÁI (Sẽ viết ở Bước 2)
+        SpawnMonstersForStage(stage);
+
+        Debug.Log($"--- BẮT ĐẦU PVE: {stage} ---");
+    }
+
+    // Kiểm tra xem quái trên map đã chết hết chưa
+    private void CheckPvEStageClearCondition()
+    {
+        // Loại bỏ các phần tử quái bị hủy khỏi danh sách kiểm tra
+        spawnedMonsters.RemoveAll(item => item == null);
+
+        if (spawnedMonsters.Count == 0)
+        {
+            // Đã tiêu diệt sạch toàn bộ quái trong ải hiện tại!
+            AdvanceToNextStage();
+        }
+    }
+
+    // Hàm tự động chuyển sang Ải tiếp theo hoặc kích hoạt Chiến Thắng
+    private void AdvanceToNextStage()
+    {
+        if (currentStage.Value == PvEStage.Stage1)
+        {
+            StartCoroutine(StageTransitionRoutine(PvEStage.Stage2, "STAGE 1 CLEAR! NEXT WAVE COMING..."));
+        }
+        else if (currentStage.Value == PvEStage.Stage2)
+        {
+            StartCoroutine(StageTransitionRoutine(PvEStage.Stage3_Boss, "STAGE 2 CLEAR! WARNING: BOSS APPROACHING!"));
+        }
+        else if (currentStage.Value == PvEStage.Stage3_Boss)
+        {
+            currentStage.Value = PvEStage.Victory;
+            gameActive.Value = false;
+            UpdateGameInfoTextRpc("VICTORY! YOU DEFEATED THE BOSS!");
+        }
+    }
+
+    IEnumerator StageTransitionRoutine(PvEStage nextStage, string message)
+    {
+        // 1. Tạm dừng game và báo hiệu
+        gameActive.Value = false;
+        UpdateGameInfoTextRpc(message);
+
+        // 2. Dọn dẹp sạch sẽ map cũ
+        if (MapGenerator.Instance != null) MapGenerator.Instance.ClearCurrentMap();
+        ClearExistingMonsters();
+
+        // 3. Cho người chơi nghỉ ngơi 3.5 giây để cắn bình máu hoặc chuẩn bị tinh thần
+        yield return new WaitForSeconds(3.5f);
+
+        // 4. Bắt đầu ải tiếp theo
+        StartPvEStage(nextStage);
+    }
+
+    [Rpc(SendTo.ClientsAndHost)]
+    void UpdateGameInfoTextRpc(string msg)
+    {
+        if (gameInfoText != null) gameInfoText.text = msg;
+    }
+
+    // Xử lý khi người chơi thua cuộc
+    public void TriggerPvEDefeat(string reason)
+    {
+        if (!IsServer || currentStage.Value == PvEStage.Defeat) return;
+
+        currentStage.Value = PvEStage.Defeat;
+        gameActive.Value = false;
+        Debug.Log($"THUA CUỘC PvE! Lý do: {reason}");
+
+        // Gọi RPC hiển thị Panel Bỏ phiếu Chơi lại / Rời phòng lên màn hình UI của mọi người
+        voteReplayCount = 0;
+        OpenReplayVotePanelRpc();
+    }
+
+    // Hàm dùng để quản lý thực thể quái (Sẽ gọi từ script Quái ở Bước 2)
+    public void RegisterMonster(GameObject monster)
+    {
+        if (monster != null && !spawnedMonsters.Contains(monster))
+        {
+            spawnedMonsters.Add(monster);
+        }
+    }
+
+    private void ClearExistingMonsters()
+    {
+        foreach (var monster in spawnedMonsters)
+        {
+            if (monster != null)
+            {
+                if (monster.GetComponent<NetworkObject>().IsSpawned)
+                    monster.GetComponent<NetworkObject>().Despawn(true);
+            }
+        }
+        spawnedMonsters.Clear();
+    }
+
+    // --- HỆ THỐNG VOTE (BỎ PHIẾU CHƠI LẠI) ---
+    [Rpc(SendTo.Everyone)]
+    private void OpenReplayVotePanelRpc()
+    {
+        // Logic UI hiển thị bảng thông báo: "Bạn có muốn chơi lại không?" 
+        // Gồm 2 nút: [Chơi Lại] và [Rời Đi]
+        // Nút [Chơi Lại] sẽ gọi hàm: SubmitVoteServerRpc(true);
+        // Nút [Rời Đi] sẽ gọi hàm: SubmitVoteServerRpc(false);
+    }
+
+    [Rpc(SendTo.Server)]
+    public void SubmitVoteServerRpc(bool voteReplay, RpcParams rpcParams = default)
+    {
+        if (voteReplay)
+        {
+            voteReplayCount++;
+            if (voteReplayCount >= totalConnectedPlayers)
+            {
+                // Toàn bộ người chơi đồng ý chơi lại -> Khởi động lại từ Ải 1
+                StartPvEStage(PvEStage.Stage1);
+                CloseVotePanelRpc();
+            }
+        }
+        else
+        {
+            // Có người bấm rời đi -> Ngắt kết nối mạng mạng đưa người đó về Menu sảnh
+            ulong clientId = rpcParams.Receive.SenderClientId;
+            if (clientId == NetworkManager.ServerClientId)
+            {
+                // Nếu Host rời phòng -> Sập phòng luôn
+                NetworkManager.Singleton.Shutdown();
+            }
+            else
+            {
+                NetworkManager.Singleton.DisconnectClient(clientId);
+            }
+        }
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void CloseVotePanelRpc()
+    {
+        // UI logic: Ẩn bảng vote đi để tiếp tục chơi ván mới
+    }
+
+    private void SpawnMonstersForStage(PvEStage stage)
+    {
+        int monsterCount = 0;
+
+        if (stage == PvEStage.Stage1) monsterCount = 6;
+        else if (stage == PvEStage.Stage2) monsterCount = 12;
+        else if (stage == PvEStage.Stage3_Boss)
+        {
+            // TÌM TỌA ĐỘ CHÍNH GIỮA BẢN ĐỒ ĐỂ THẢ BOSS
+            Vector2 centerPos = new Vector2((spawnAreaMin.x + spawnAreaMax.x) / 2f, (spawnAreaMin.y + spawnAreaMax.y) / 2f);
+            centerPos = new Vector2(Mathf.Round(centerPos.x), Mathf.Round(centerPos.y));
+
+            GameObject boss = Instantiate(bossPrefab, centerPos, Quaternion.identity);
+            boss.GetComponent<NetworkObject>().Spawn();
+
+            RegisterMonster(boss); // Đăng ký Boss như một quái vật để CheckPvEStageClearCondition hoạt động
+            return; // Đẻ Boss xong thì thoát hàm
+        }
+        else return;
+
+        for (int i = 0; i < monsterCount; i++)
+        {
+            Vector2 spawnPos = GetMonsterSpawnPosition();
+
+            if (spawnPos != Vector2.zero)
+            {
+                GameObject monster = Instantiate(basicMonsterPrefab, spawnPos, Quaternion.identity);
+                monster.GetComponent<NetworkObject>().Spawn();
+                RegisterMonster(monster);
+            }
+        }
+    }
+
+    public Vector2 GetMonsterSpawnPosition()
+    {
+        for (int i = 0; i < 50; i++) // Quét tối đa 50 lần để tìm ô đẹp
+        {
+            Vector2 potentialPos = GetSafeSpawnPosition();
+            if (potentialPos == Vector2.zero) continue;
+
+            bool isSafeFromPlayers = true;
+            // Kiểm tra xem vị trí này có quá gần 4 góc của người chơi không (Bán kính 4 ô)
+            for (int c = 0; c < 4; c++)
+            {
+                if (Vector2.Distance(potentialPos, GetCornerSpawnPosition(c)) < 4.0f)
+                {
+                    isSafeFromPlayers = false;
+                    break;
+                }
+            }
+
+            if (isSafeFromPlayers) return potentialPos; // Tìm được ô hoàn hảo!
+        }
+
+        // Nếu map quá chật, đành lấy tạm ô an toàn bất kỳ
+        return GetSafeSpawnPosition();
+    }
+
+    public void ReturnToMainMenu()
+    {
+        // Ngắt kết nối mạng một cách an toàn
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.Shutdown();
+        }
+
+        // Dọn dẹp nhạc (Tùy chọn)
+        if (AudioManager.Instance != null)
+        {
+            AudioManager.Instance.PlayBGM(AudioManager.Instance.mainMenuBGM);
+        }
+
+        // Tải lại Scene Menu (Hãy sửa "MainMenu" thành đúng tên Scene của bạn nếu khác)
+        UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenu");
     }
 
 }

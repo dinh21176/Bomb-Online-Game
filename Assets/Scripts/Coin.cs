@@ -10,10 +10,10 @@ public class Coin : NetworkBehaviour
     [Header("Item Sprites")]
     [SerializeField] Sprite coinSprite;
     [SerializeField] Sprite diamondSprite;
-    [SerializeField] Sprite trapSprite; // Maybe use a skull or poison icon?
-    [SerializeField] Sprite speedSprite; // Your "ItemSpeed" asset
-    [SerializeField] Sprite bombUpSprite; // Your "ItemExtraBomb" asset
-    [SerializeField] Sprite fireSprite;   // Your "ItemBlastRange" asset
+    [SerializeField] Sprite trapSprite;
+    [SerializeField] Sprite speedSprite; 
+    [SerializeField] Sprite bombUpSprite; 
+    [SerializeField] Sprite fireSprite; 
     [SerializeField] Sprite rareSprite;
 
     private int scoreValue = 0;
@@ -36,7 +36,7 @@ public class Coin : NetworkBehaviour
             case 2: // Trap
                 spriteRenderer.sprite = trapSprite;
                 scoreValue = -3;
-                spriteRenderer.color = Color.red; // Tint it red if you don't have a specific trap sprite
+                spriteRenderer.color = Color.red; 
                 break;
             case 3: spriteRenderer.sprite = speedSprite; break;
             case 4: spriteRenderer.sprite = bombUpSprite; break;

@@ -205,3 +205,7 @@ MonoBehaviour:
   bombUpSprite: {fileID: 21300000, guid: 9fcbee32274cbb8489e22422338d0cda, type: 3}
   fireSprite: {fileID: 21300000, guid: aabe73f26375c4a47a9cfa995fd5a44a, type: 3}
   rareSprite: {fileID: -4570538037665054336, guid: 3d6be91968cb95546ac95aeff5e52f84, type: 3}
+  slowSprite: {fileID: 21300000, guid: 00eb23488a4f425ab13701965bafeac0, type: 3}
+  reverseSprite: {fileID: 21300000, guid: b9ef8fdc493e406a90a4da6c1ea44022, type: 3}
+  invisibleSprite: {fileID: 21300000, guid: 5c5deee37c664023b72ecbb16746f258, type: 3}
+  invincibleSprite: {fileID: 21300000, guid: 65b596ed48df47cfb34dd7a81e0b4059, type: 3}

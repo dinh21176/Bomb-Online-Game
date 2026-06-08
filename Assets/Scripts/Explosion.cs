@@ -20,7 +20,7 @@ public class Explosion : NetworkBehaviour
 
         if (IsServer)
         {
-            Invoke(nameof(DestroyExplosion), 0.5f);
+            Invoke(nameof(DestroyExplosion), 0.3f);
         }
     }
 

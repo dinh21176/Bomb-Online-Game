@@ -40,6 +40,22 @@ public class PlayerMovement : NetworkBehaviour
 
     // Immnunity
     private bool isInvincible = false;
+    private int invincibilitySources = 0;
+
+    private bool isSlowActive = false;
+    private bool isReverseControlsActive = false;
+    private bool visualInvincible = false;
+    private bool visualInvisible = false;
+    private Coroutine slowRoutine;
+    private Coroutine reverseRoutine;
+    private Coroutine invisibilityRoutine;
+    private Coroutine itemInvincibilityRoutine;
+
+    private const float SLOW_MULTIPLIER = 0.45f;
+    private const float SLOW_DURATION = 5f;
+    private const float REVERSE_DURATION = 5f;
+    private const float INVISIBILITY_DURATION = 6f;
+    private const float ITEM_INVINCIBILITY_DURATION = 5f;
 
 
     // Constants
@@ -92,13 +108,17 @@ public class PlayerMovement : NetworkBehaviour
             float x = Input.GetAxisRaw("Horizontal");
             float y = Input.GetAxisRaw("Vertical");
 
-           
+
             if (x != 0)
             {
                 y = 0;
             }
 
             Vector2 currentInput = new Vector2(x, y).normalized;
+
+            if (isReverseControlsActive)
+                currentInput *= -1f;
+
             netInput.Value = currentInput;
 
             if (Input.GetKeyDown(KeyCode.Space))
@@ -112,7 +132,7 @@ public class PlayerMovement : NetworkBehaviour
 
     private void FixedUpdate()
     {
-        if (!IsOwner) return; 
+        if (!IsOwner) return;
 
         float currentSpeed = CalculateCurrentSpeed();
 
@@ -147,8 +167,11 @@ public class PlayerMovement : NetworkBehaviour
         if (isRareModeActive)
         {
             // Use absolute max level for calculation + small bonus
-            return baseMoveSpeed + (ABSOLUTE_MAX_SPEED_LEVEL * speedStep) + 2f;
+            speed = baseMoveSpeed + (ABSOLUTE_MAX_SPEED_LEVEL * speedStep) + 2f;
         }
+
+        if (isSlowActive)
+            speed *= SLOW_MULTIPLIER;
 
         return speed;
     }
@@ -217,6 +240,105 @@ public class PlayerMovement : NetworkBehaviour
                 StartCoroutine(RarePowerUpRoutine(5f)); // 5 Seconds duration
                 break;
         }
+    }
+
+    public void ApplyItemEffect(int effectType)
+    {
+        if (!IsServer) return;
+
+        switch (effectType)
+        {
+            case 7:
+                RestartSlowEffect();
+                break;
+            case 8:
+                RestartReverseEffect();
+                break;
+            case 9:
+                RestartInvisibilityEffect();
+                break;
+            case 10:
+                RestartItemInvincibilityEffect();
+                break;
+        }
+    }
+
+    private void RestartSlowEffect()
+    {
+        if (slowRoutine != null) StopCoroutine(slowRoutine);
+        slowRoutine = StartCoroutine(SlowEffectRoutine());
+    }
+
+    private IEnumerator SlowEffectRoutine()
+    {
+        SetSlowEffectClientRpc(true);
+        yield return new WaitForSeconds(SLOW_DURATION);
+        SetSlowEffectClientRpc(false);
+        slowRoutine = null;
+    }
+
+    private void RestartReverseEffect()
+    {
+        if (reverseRoutine != null) StopCoroutine(reverseRoutine);
+        reverseRoutine = StartCoroutine(ReverseEffectRoutine());
+    }
+
+    private IEnumerator ReverseEffectRoutine()
+    {
+        SetReverseEffectClientRpc(true);
+        yield return new WaitForSeconds(REVERSE_DURATION);
+        SetReverseEffectClientRpc(false);
+        reverseRoutine = null;
+    }
+
+    private void RestartInvisibilityEffect()
+    {
+        if (invisibilityRoutine != null)
+        {
+            StopCoroutine(invisibilityRoutine);
+            SetInvisibilityVisualsRpc(false);
+        }
+
+        invisibilityRoutine = StartCoroutine(InvisibilityEffectRoutine());
+    }
+
+    private IEnumerator InvisibilityEffectRoutine()
+    {
+        SetInvisibilityVisualsRpc(true);
+        yield return new WaitForSeconds(INVISIBILITY_DURATION);
+        SetInvisibilityVisualsRpc(false);
+        invisibilityRoutine = null;
+    }
+
+    private void RestartItemInvincibilityEffect()
+    {
+        if (itemInvincibilityRoutine != null)
+        {
+            StopCoroutine(itemInvincibilityRoutine);
+            RemoveInvincibilitySource();
+        }
+
+        itemInvincibilityRoutine = StartCoroutine(ItemInvincibilityEffectRoutine());
+    }
+
+    private IEnumerator ItemInvincibilityEffectRoutine()
+    {
+        AddInvincibilitySource();
+        yield return new WaitForSeconds(ITEM_INVINCIBILITY_DURATION);
+        RemoveInvincibilitySource();
+        itemInvincibilityRoutine = null;
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void SetSlowEffectClientRpc(bool active)
+    {
+        isSlowActive = active;
+    }
+
+    [Rpc(SendTo.Owner)]
+    private void SetReverseEffectClientRpc(bool active)
+    {
+        isReverseControlsActive = active;
     }
 
     // --- RARE ITEM LOGIC ---
@@ -296,6 +418,8 @@ public class PlayerMovement : NetworkBehaviour
             SetRareModeClientRpc(false);
         }
 
+        ClearTemporaryItemEffects();
+
         StartCoroutine(RespawnCoroutine());
     }
 
@@ -325,13 +449,11 @@ public class PlayerMovement : NetworkBehaviour
         TeleportPlayerRpc(respawnPos);
 
         // --- CƠ CHẾ BẤT TỬ 2 GIÂY ---
-        isInvincible = true;
-        SetInvincibleVisualsRpc(true); // Làm mờ nhân vật
+        AddInvincibilitySource();
 
         yield return new WaitForSeconds(2f);
 
-        isInvincible = false;
-        SetInvincibleVisualsRpc(false); // Sáng lại bình thường
+        RemoveInvincibilitySource();
     }
 
     private void OnDeathStateChanged(bool prev, bool current)
@@ -373,12 +495,50 @@ public class PlayerMovement : NetworkBehaviour
     [Rpc(SendTo.Everyone)]
     private void SetInvincibleVisualsRpc(bool isInvincibleState)
     {
+        visualInvincible = isInvincibleState;
+        RefreshStatusVisuals();
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void SetInvisibilityVisualsRpc(bool isInvisibleState)
+    {
+        visualInvisible = isInvisibleState;
+        RefreshStatusVisuals();
+    }
+
+    private void RefreshStatusVisuals()
+    {
         if (visuals != null)
         {
-            Color c = visuals.color;
-            c.a = isInvincibleState ? 0.4f : 1f; // Độ mờ 40% khi bất tử
-            visuals.color = c;
+            if (visualInvisible)
+            {
+                visuals.color = IsOwner
+                    ? new Color(0.55f, 0.9f, 1f, 0.42f)
+                    : new Color(0.55f, 0.9f, 1f, 0.12f);
+            }
+            else if (visualInvincible)
+            {
+                visuals.color = new Color(1f, 0.88f, 0.22f, 0.88f);
+            }
+            else
+            {
+                visuals.color = Color.white;
+            }
         }
+    }
+
+    private void AddInvincibilitySource()
+    {
+        invincibilitySources++;
+        isInvincible = true;
+        SetInvincibleVisualsRpc(true);
+    }
+
+    private void RemoveInvincibilitySource()
+    {
+        invincibilitySources = Mathf.Max(0, invincibilitySources - 1);
+        isInvincible = invincibilitySources > 0;
+        SetInvincibleVisualsRpc(isInvincible);
     }
 
     public void ResetStats()
@@ -398,16 +558,47 @@ public class PlayerMovement : NetworkBehaviour
             isRareModeActive = false;
             SetRareModeClientRpc(false);
         }
+
+        ClearTemporaryItemEffects();
     }
 
     private IEnumerator SafeTeleportRoutine()
     {
-        isInvincible = true;
-        SetInvincibleVisualsRpc(true); // Làm nhân vật mờ đi xíu để báo hiệu đang an toàn
+        AddInvincibilitySource();
 
         yield return new WaitForSeconds(2.5f); // Đứng bất tử 2.5 giây chờ mạng ổn định
 
-        isInvincible = false;
-        SetInvincibleVisualsRpc(false); // Sáng lại bình thường sẵn sàng chiến đấu
+        RemoveInvincibilitySource();
+    }
+
+    private void ClearTemporaryItemEffects()
+    {
+        if (slowRoutine != null)
+        {
+            StopCoroutine(slowRoutine);
+            slowRoutine = null;
+            SetSlowEffectClientRpc(false);
+        }
+
+        if (reverseRoutine != null)
+        {
+            StopCoroutine(reverseRoutine);
+            reverseRoutine = null;
+            SetReverseEffectClientRpc(false);
+        }
+
+        if (invisibilityRoutine != null)
+        {
+            StopCoroutine(invisibilityRoutine);
+            invisibilityRoutine = null;
+            SetInvisibilityVisualsRpc(false);
+        }
+
+        if (itemInvincibilityRoutine != null)
+        {
+            StopCoroutine(itemInvincibilityRoutine);
+            itemInvincibilityRoutine = null;
+            RemoveInvincibilitySource();
+        }
     }
 }

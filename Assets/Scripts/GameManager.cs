@@ -237,16 +237,7 @@ public class GameManager : NetworkBehaviour
     {
         if (!gameActive.Value) return;
 
-        // Rarity Logic
-        int type = 0;
-        float r = Random.Range(0f, 100f);
-
-        if (r > 95f) type = 6;       // Rare
-        else if (r > 90f) type = 1;  // Diamond
-        else if (r > 75f) type = 2;  // Trap
-        else if (r > 65f) type = 5;  // Fire
-        else if (r > 55f) type = 4;  // Bomb Up
-        else if (r > 45f) type = 3;  // Speed
+        int type = RollItemType();
 
         if (currentMode.Value == GameMode.PvE)
         {
@@ -290,17 +281,26 @@ public class GameManager : NetworkBehaviour
         if (netObj != null)
         {
             netObj.Spawn();
-
-            // Rarity Logic
-            if (r > 95f) type = 6;       // Rare
-            else if (r > 90f) type = 1;  // Diamond
-            else if (r > 75f) type = 2;  // Trap
-            else if (r > 65f) type = 5;  // Fire
-            else if (r > 55f) type = 4;  // Bomb Up
-            else if (r > 45f) type = 3;  // Speed
-
             itemScript.coinType.Value = type;
         }
+    }
+
+    private int RollItemType()
+    {
+        float r = Random.Range(0f, 100f);
+
+        if (r > 98f) return 6;   // Rare
+        if (r > 94f) return 10;  // Invincible
+        if (r > 90f) return 9;   // Invisible
+        if (r > 84f) return 8;   // Reverse controls
+        if (r > 78f) return 7;   // Slow
+        if (r > 70f) return 1;   // Diamond
+        if (r > 62f) return 2;   // Trap
+        if (r > 52f) return 5;   // Fire
+        if (r > 42f) return 4;   // Bomb Up
+        if (r > 32f) return 3;   // Speed
+
+        return 0;                // Coin
     }
 
     // --- SPAWN WALL (Prevents walls overlapping players/coins) ---

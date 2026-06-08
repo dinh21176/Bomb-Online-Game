@@ -3,6 +3,11 @@ using UnityEngine;
 
 public class Coin : NetworkBehaviour
 {
+    private const int SlowItemType = 7;
+    private const int ReverseItemType = 8;
+    private const int InvisibleItemType = 9;
+    private const int InvincibleItemType = 10;
+
     public NetworkVariable<int> coinType = new NetworkVariable<int>(0);
     [SerializeField] private SpriteRenderer spriteRenderer;
 
@@ -15,6 +20,10 @@ public class Coin : NetworkBehaviour
     [SerializeField] Sprite bombUpSprite; 
     [SerializeField] Sprite fireSprite; 
     [SerializeField] Sprite rareSprite;
+    [SerializeField] Sprite slowSprite;
+    [SerializeField] Sprite reverseSprite;
+    [SerializeField] Sprite invisibleSprite;
+    [SerializeField] Sprite invincibleSprite;
 
     private int scoreValue = 0;
 
@@ -42,6 +51,22 @@ public class Coin : NetworkBehaviour
             case 4: spriteRenderer.sprite = bombUpSprite; break;
             case 5: spriteRenderer.sprite = fireSprite; break;
             case 6: spriteRenderer.sprite = rareSprite; break;
+            case SlowItemType:
+                spriteRenderer.sprite = slowSprite;
+                spriteRenderer.color = new Color(0.45f, 0.75f, 1f, 1f);
+                break;
+            case ReverseItemType:
+                spriteRenderer.sprite = reverseSprite;
+                spriteRenderer.color = new Color(1f, 0.45f, 0.45f, 1f);
+                break;
+            case InvisibleItemType:
+                spriteRenderer.sprite = invisibleSprite;
+                spriteRenderer.color = new Color(0.55f, 0.95f, 1f, 1f);
+                break;
+            case InvincibleItemType:
+                spriteRenderer.sprite = invincibleSprite;
+                spriteRenderer.color = new Color(1f, 0.88f, 0.22f, 1f);
+                break;
         }
     }
 
@@ -71,6 +96,8 @@ public class Coin : NetworkBehaviour
                 if (coinType.Value == 4) player.UpgradeStat(1); // Bomb Up
                 if (coinType.Value == 5) player.UpgradeStat(2); // Fire
                 if (coinType.Value == 6) player.UpgradeStat(3); // RARE
+                if (coinType.Value >= SlowItemType && coinType.Value <= InvincibleItemType)
+                    player.ApplyItemEffect(coinType.Value);
             }
 
             // 2. NẾU LÀ BOT AI

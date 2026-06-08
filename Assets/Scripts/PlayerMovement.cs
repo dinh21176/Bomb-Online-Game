@@ -157,6 +157,7 @@ public class PlayerMovement : NetworkBehaviour
     void TryPlantBombServerRpc()
     {
         if (isDead.Value || currentActiveBombs >= maxBombs.Value) return;
+        if (GameManager.Instance != null && !GameManager.Instance.gameActive.Value) return;
         Vector2 spawnPos = new Vector2(Mathf.Round(transform.position.x), Mathf.Round(transform.position.y));
         if (Physics2D.OverlapCircle(spawnPos, 0.1f, bombLayer)) return;
 
@@ -272,6 +273,7 @@ public class PlayerMovement : NetworkBehaviour
     {
         if (!IsServer || isDead.Value || isInvincible) return;
 
+        if (GameManager.Instance != null && !GameManager.Instance.gameActive.Value) return;
         Debug.Log($"Player {OwnerClientId} was killed by {killerId}!");
 
         // PENALTY: Victim loses 15 points
@@ -363,7 +365,9 @@ public class PlayerMovement : NetworkBehaviour
     public void ForceTeleport(Vector2 position)
     {
         if (!IsServer) return;
+        transform.position = position;
         TeleportPlayerRpc(position);
+        StartCoroutine(SafeTeleportRoutine());
     }
 
     [Rpc(SendTo.Everyone)]
@@ -394,5 +398,16 @@ public class PlayerMovement : NetworkBehaviour
             isRareModeActive = false;
             SetRareModeClientRpc(false);
         }
+    }
+
+    private IEnumerator SafeTeleportRoutine()
+    {
+        isInvincible = true;
+        SetInvincibleVisualsRpc(true); // Làm nhân vật mờ đi xíu để báo hiệu đang an toàn
+
+        yield return new WaitForSeconds(2.5f); // Đứng bất tử 2.5 giây chờ mạng ổn định
+
+        isInvincible = false;
+        SetInvincibleVisualsRpc(false); // Sáng lại bình thường sẵn sàng chiến đấu
     }
 }

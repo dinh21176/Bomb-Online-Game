@@ -1506,6 +1506,8 @@ MonoBehaviour:
     m_InternalValue: 0
   currentStage:
     m_InternalValue: 0
+  airdropVisualPrefab: {fileID: 3181000018563220594, guid: 823cd16daa6b6064fa53e60ef67622bf, type: 3}
+  airdropInterval: 15
   selectedMapIndex: 0
   gameActive:
     m_InternalValue: 0

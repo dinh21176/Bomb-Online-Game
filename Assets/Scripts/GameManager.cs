@@ -53,10 +53,16 @@ public class GameManager : NetworkBehaviour
     public NetworkVariable<GameMode> currentMode = new NetworkVariable<GameMode>(GameMode.PvP);
     public NetworkVariable<PvEStage> currentStage = new NetworkVariable<PvEStage>(PvEStage.NotStarted);
 
+    [Header("Airdrop Settings")]
+    [SerializeField] private GameObject airdropVisualPrefab; 
+    [SerializeField] private float airdropInterval = 25f;   
+
     // Quản lý danh sách quái để tính điều kiện qua màn
     private List<GameObject> spawnedMonsters = new List<GameObject>();
     private int voteReplayCount = 0;
     private int totalConnectedPlayers = 0;
+
+    private bool airdropStarted = false;
 
     [HideInInspector] public int selectedMapIndex = 0; 
     public static GameManager Instance { get; private set; }
@@ -127,6 +133,17 @@ public class GameManager : NetworkBehaviour
         if (gameTime.Value > 0)
         {
             gameTime.Value -= Time.deltaTime;
+
+            if (currentMode.Value == GameMode.PvP && !suddenDeathStarted && gameTime.Value <= suddenDeathTime)
+            {
+                StartCoroutine(SuddenDeathRoutine());
+            }
+
+            if (currentMode.Value == GameMode.PvP && !airdropStarted && gameTime.Value <= 70f)
+            {
+                airdropStarted = true;
+                StartCoroutine(AirdropRoutine());
+            }
         }
         else
         {
@@ -202,6 +219,8 @@ public class GameManager : NetworkBehaviour
             bot.GetComponent<NetworkObject>().Spawn();
             
         }
+        airdropStarted = false;
+        //StartCoroutine(AirdropRoutine());
     }
 
     IEnumerator SpawnCoinRoutine()
@@ -841,6 +860,76 @@ public class GameManager : NetworkBehaviour
         }
 
         return endGamePanel;
+    }
+
+    IEnumerator AirdropRoutine()
+    {
+        while (gameActive.Value)
+        {
+            yield return new WaitForSeconds(airdropInterval);
+
+            // Kiểm tra an toàn: Đề phòng trong 25 giây chờ đợi game đã kết thúc đột ngột
+            if (!gameActive.Value) break;
+
+            TriggerAirdrop();
+        }
+    }
+
+    private void TriggerAirdrop()
+    {
+        if (!IsServer) return;
+
+        // Tìm 1 ô trống an toàn ngẫu nhiên trên bản đồ
+        Vector2 dropPos = GetSafeSpawnPosition();
+        if (dropPos == Vector2.zero) return;
+
+        // Gọi các máy Client báo động và vẽ hình ảnh rớt hộp quà (Kéo dài 2 giây)
+        PlayAirdropVisualsRpc(dropPos);
+
+        // Server chờ đúng 2 giây để hình ảnh rơi xong, rồi mới đẻ Item thật
+        StartCoroutine(SpawnAirdropItemRoutine(dropPos, 2.0f));
+    }
+
+    [Rpc(SendTo.Everyone)]
+    private void PlayAirdropVisualsRpc(Vector2 pos)
+    {
+   
+        // if (AudioManager.Instance != null) AudioManager.Instance.PlaySFX(AudioManager.Instance.airplaneSFX);
+
+        if (airdropVisualPrefab != null)
+        {
+            Instantiate(airdropVisualPrefab, pos, Quaternion.identity);
+        }
+    }
+
+    private IEnumerator SpawnAirdropItemRoutine(Vector2 pos, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+
+        // Chờ 2s xong, nếu game vẫn đang chạy thì đẻ đồ
+        if (!gameActive.Value) yield break;
+
+        GameObject item = Instantiate(coinPrefab, pos, Quaternion.identity);
+        var netObj = item.GetComponent<NetworkObject>();
+        var itemScript = item.GetComponent<Coin>();
+
+        if (netObj != null)
+        {
+            netObj.Spawn();
+            // Lấy đồ xịn thay vì rớt ngẫu nhiên như SpawnCoin bình thường
+            itemScript.coinType.Value = RollHighTierAirdropItem();
+        }
+    }
+
+    // Tỷ lệ chỉ ra toàn đồ xịn để kích thích tranh giành
+    private int RollHighTierAirdropItem()
+    {
+        float r = Random.Range(0f, 100f);
+        if (r > 80f) return 6;       // 20% Rare (Cộng mọi chỉ số)
+        if (r > 60f) return 10;      // 20% Invincible (Bất tử)
+        if (r > 40f) return 9;       // 20% Tàng hình
+        if (r > 20f) return 5;       // 20% Tia Lửa
+        return 4;                    // 20% Thêm Bom
     }
 
 }
